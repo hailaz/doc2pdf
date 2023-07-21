@@ -9,6 +9,7 @@ import (
 	"path"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
@@ -95,6 +96,112 @@ func ErrTest() (err error) {
 // author: hailaz
 func ReturnErr() (int, error) {
 	return 0, nil
+}
+
+// TestGfDoc description
+//
+// createTime: 2023-07-21 16:20:23
+//
+// author: hailaz
+func TestGfDoc(t *testing.T) {
+	if binPath, exists := launcher.LookPath(); exists {
+		t.Log(binPath)
+		u := launcher.New().Bin(binPath).MustLaunch()
+		b := rod.New().ControlURL(u).MustConnect()
+		// b.MustPage("https://goframe.org/display/gf").MustWaitLoad().MustPDF("gf_index.pdf")
+
+		menuEl := b.MustPage("https://goframe.org/display/gf").MustWaitLoad().MustElement("ul.plugin_pagetree_children_list.plugin_pagetree_children_list_noleftspace ul")
+		t.Log(menuEl.MustText())
+		bms := make([]pdfcpu.Bookmark, 0)
+		fileList := make([]string, 0)
+		pageFrom := 1
+
+		baseUrl := "https://goframe.org"
+		dirPath := "./output/gfdoc"
+		FindMenuGf(b, menuEl, baseUrl, 0, dirPath, &pageFrom, &fileList, &bms)
+		// g.Dump(bms)
+		api.MergeCreateFile(fileList, dirPath+".temp.pdf", nil)
+		api.AddBookmarksFile(dirPath+".temp.pdf", dirPath+".pdf", bms, true, nil)
+	}
+}
+
+// FindMenu description
+//
+// createTime: 2023-07-11 16:13:27
+//
+// author: hailaz
+func FindMenuGf(browser *rod.Browser, root *rod.Element, baseUrl string, level int, dirPath string, pageFrom *int, fileList *[]string, bms *[]pdfcpu.Bookmark) {
+	index := 0
+	// 循环当前节点的li
+	for li, err := root.Element("li"); err == nil; li, err = li.Next() {
+		// 获取当前节点的a标签
+		a, err := li.Element("div.plugin_pagetree_children_content a")
+		if err != nil {
+			log.Printf("[err]: %s", err)
+			continue
+		}
+		// 获取a标签的href属性
+		href, err := a.Attribute("href")
+		if err != nil {
+			log.Printf("[err]: %s", err)
+			continue
+		}
+		// 获取a标签的文本
+		text, err := a.Text()
+		if err != nil {
+			continue
+		}
+		fmt.Printf("title: %s\n", text)
+
+		*bms = append(*bms, pdfcpu.Bookmark{
+			Title:    text,
+			PageFrom: *pageFrom,
+		})
+
+		{
+			// 拼接完整的url
+			url := baseUrl + *href
+			// 打印当前节点的层级和url
+
+			// 打印当前节点的文本
+			// fmt.Println(text)
+
+			fmt.Printf("%s[%s](%s)\n", strings.Repeat("--", level), text, url)
+			// 保存pdf
+			fileName := fmt.Sprintf("%d-%s.pdf", index, text)
+			*fileList = append(*fileList, path.Join(dirPath, fileName))
+
+			SavePdf(browser, path.Join(dirPath, fileName), url)
+
+			page, _ := api.PageCountFile(path.Join(dirPath, fileName))
+			*pageFrom = *pageFrom + page
+
+			fmt.Printf("文件页码%d/%d： %s\n", page, *pageFrom, path.Join(dirPath, fileName))
+
+		}
+		if a, err := li.Element("div.plugin_pagetree_childtoggle_container a"); err == nil {
+			if err := a.Click(proto.InputMouseButtonLeft, 1); err == nil {
+				time.Sleep(500 * time.Millisecond)
+				// 如果当前节点有子节点
+				if ul, err := li.Element("div.plugin_pagetree_children_container ul"); err == nil {
+					log.Printf("[子菜单]: %s", ul.MustText())
+					// 递归子节点
+					dirName := fmt.Sprintf("%d-%s", index, text)
+					(*bms)[index].Children = make([]pdfcpu.Bookmark, 0)
+					FindMenuGf(browser, ul, baseUrl, level+1, path.Join(dirPath, dirName), pageFrom, fileList, &((*bms)[index].Children))
+					// index++
+				} else {
+					fmt.Println("没有子节点", err)
+				}
+			}
+
+		}
+		index++
+		// fmt.Println(li.Text())
+	}
+
+	// fmt.Println(root.MustElements("li").First().Text())
+	// fmt.Println(root.MustElements("li").Last().MustNext().MustText())
 }
 
 // TestDownPdf description
@@ -212,7 +319,9 @@ func SavePdf(browser *rod.Browser, filePath string, pageUrl string) {
 		fmt.Println("创建目录", dir)
 		os.MkdirAll(dir, os.ModePerm)
 	}
-	browser.MustPage(pageUrl).MustWaitLoad().MustPDF(filePath)
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		browser.MustPage(pageUrl).MustWaitLoad().MustPDF(filePath)
+	}
 }
 
 // TestMerge description
