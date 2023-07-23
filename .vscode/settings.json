@@ -1,3 +1,9 @@
 {
-    "go.testTimeout": "3000s"
+    "go.testTimeout": "3000s",
+    "go.testEnvVars": {},
+    "go.testFlags": [
+        "-v",
+        "-count=1", //是否清除测试缓存
+        // "-rod=show",
+    ]
 }

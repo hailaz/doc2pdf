@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/devices"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
@@ -108,6 +109,9 @@ func TestGfDoc(t *testing.T) {
 		t.Log(binPath)
 		u := launcher.New().Bin(binPath).MustLaunch()
 		b := rod.New().ControlURL(u).MustConnect()
+		b = b.DefaultDevice(devices.Device{
+			AcceptLanguage: "zh-CN",
+		})
 		// b.MustPage("https://goframe.org/display/gf").MustWaitLoad().MustPDF("gf_index.pdf")
 
 		menuEl := b.MustPage("https://goframe.org/display/gf").MustWaitLoad().MustElement("ul.plugin_pagetree_children_list.plugin_pagetree_children_list_noleftspace ul")
@@ -307,6 +311,23 @@ func FindMenu(browser *rod.Browser, root *rod.Element, baseUrl string, level int
 	// fmt.Println(root.MustElements("li").Last().MustNext().MustText())
 }
 
+// TestSavePdf description
+//
+// createTime: 2023-07-23 23:43:49
+//
+// author: hailaz
+func TestSavePdf(t *testing.T) {
+	if binPath, exists := launcher.LookPath(); exists {
+		t.Log(binPath)
+		u := launcher.New().Bin(binPath).MustLaunch()
+		b := rod.New().ControlURL(u).MustConnect()
+		b = b.DefaultDevice(devices.Device{
+			AcceptLanguage: "zh-CN",
+		})
+		SavePdf(b, "./output/test/test.pdf", "https://goframe.org/pages/viewpage.action?pageId=57183756")
+	}
+}
+
 // SavePdf description
 //
 // createTime: 2023-07-11 16:51:31
@@ -320,7 +341,22 @@ func SavePdf(browser *rod.Browser, filePath string, pageUrl string) {
 		os.MkdirAll(dir, os.ModePerm)
 	}
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		browser.MustPage(pageUrl).MustWaitLoad().MustPDF(filePath)
+		page := browser.MustPage(pageUrl).MustWaitLoad()
+		// _ = proto.EmulationSetLocaleOverride{Locale: "zh-CN"}.Call(page)
+		// page.MustEmulate(devices.)
+		page.MustEval(`() => {
+	var tocMacroDiv = document.querySelector("div.toc-macro");
+	if(tocMacroDiv&&tocMacroDiv.style){
+		tocMacroDiv.style.maxHeight = "5000px";
+	} 
+}`)
+		// time.Sleep(time.Second * 10)
+		// menu,err:=page.Element("div.toc-macro")
+		// if err==nil{
+		// 	menu.
+		// }
+		page.MustPDF(filePath)
+		page.Close()
 	}
 }
 
