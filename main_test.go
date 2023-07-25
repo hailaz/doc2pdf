@@ -325,6 +325,12 @@ func TestSavePdf(t *testing.T) {
 			AcceptLanguage: "zh-CN",
 		})
 		SavePdf(b, "./output/test/test.pdf", "https://goframe.org/pages/viewpage.action?pageId=57183756")
+	} else {
+		b := rod.New().MustConnect()
+		b = b.DefaultDevice(devices.Device{
+			AcceptLanguage: "zh-CN",
+		})
+		SavePdf(b, "./output/test/test.pdf", "https://goframe.org/pages/viewpage.action?pageId=57183756")
 	}
 }
 
