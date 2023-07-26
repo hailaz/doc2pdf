@@ -99,6 +99,27 @@ func ReturnErr() (int, error) {
 	return 0, nil
 }
 
+// TestMR description
+//
+// createTime: 2023-07-26 09:54:18
+//
+// author: hailaz
+func TestMR(t *testing.T) {
+	fileList := make([]string, 0)
+	dirPath := "./output/gfdoc"
+	fileList = append(fileList, path.Join(dirPath, "/0-快速开始.pdf"))
+	fileList = append(fileList, path.Join(dirPath, "/0-快速开始.pdf"))
+	fileList = append(fileList, path.Join(dirPath, "/0-快速开始.pdf"))
+	fileList = append(fileList, path.Join(dirPath, "/0-快速开始.pdf"))
+	fileList = append(fileList, path.Join(dirPath, "/0-快速开始.pdf"))
+	fileList = append(fileList, path.Join(dirPath, "/0-快速开始.pdf"))
+	MRList(fileList, dirPath, ".temp.pdf", 2)
+	// err := api.MergeCreateFile(fileList, dirPath+".mrtest.pdf", nil)
+	// if err != nil {
+	// 	log.Printf("[err]: %s", err)
+	// }
+}
+
 // TestGfDoc description
 //
 // createTime: 2023-07-21 16:20:23
@@ -124,8 +145,53 @@ func TestGfDoc(t *testing.T) {
 		dirPath := "./output/gfdoc"
 		FindMenuGf(b, menuEl, baseUrl, 0, dirPath, &pageFrom, &fileList, &bms)
 		// g.Dump(bms)
-		api.MergeCreateFile(fileList, dirPath+".temp.pdf", nil)
-		api.AddBookmarksFile(dirPath+".temp.pdf", dirPath+".pdf", bms, true, nil)
+		MRList(fileList, dirPath, ".temp.pdf", 50)
+		// err := api.MergeCreateFile(fileList, dirPath+".temp.pdf", nil)
+		// if err != nil {
+		// 	log.Printf("[err]: %s", err)
+		// }
+		err := api.AddBookmarksFile(dirPath+".temp.pdf", dirPath+".pdf", bms, true, nil)
+		if err != nil {
+			log.Printf("[err]: %s", err)
+		}
+	}
+}
+
+// MRList 分批合并pdf
+//
+// createTime: 2023-07-26 10:02:57
+//
+// author: hailaz
+func MRList(fileList []string, dirPath string, fileName string, preNum int) {
+	fLen := len(fileList)
+
+	if fLen > 0 {
+		index := 0
+		tempOldName := ""
+		tempName := fmt.Sprintf("%s.%d%s", dirPath, index, fileName)
+		for {
+			if index+preNum >= fLen {
+				log.Printf("合并%d-%d\n%+v", index, fLen, fileList[index:fLen])
+				if index == 0 {
+					api.MergeCreateFile(fileList[index:fLen], tempName, nil)
+				} else {
+					api.MergeCreateFile(append([]string{tempOldName}, fileList[index:fLen]...), dirPath+fileName, nil)
+					os.Remove(tempOldName)
+				}
+				break
+			}
+			log.Printf("合并%d-%d\n%+v", index, index+preNum, fileList[index:index+preNum])
+			if index == 0 {
+				api.MergeCreateFile(fileList[index:index+preNum], tempName, nil)
+			} else {
+				api.MergeCreateFile(append([]string{tempOldName}, fileList[index:index+preNum]...), tempName, nil)
+				os.Remove(tempOldName)
+			}
+
+			index += preNum
+			tempOldName = tempName
+			tempName = fmt.Sprintf("%s.%d%s", dirPath, index, fileName)
+		}
 	}
 }
 
@@ -155,7 +221,7 @@ func FindMenuGf(browser *rod.Browser, root *rod.Element, baseUrl string, level i
 		if err != nil {
 			continue
 		}
-		fmt.Printf("title: %s\n", text)
+		// fmt.Printf("title: %s\n", text)
 
 		*bms = append(*bms, pdfcpu.Bookmark{
 			Title:    text,
@@ -185,10 +251,10 @@ func FindMenuGf(browser *rod.Browser, root *rod.Element, baseUrl string, level i
 		}
 		if a, err := li.Element("div.plugin_pagetree_childtoggle_container a"); err == nil {
 			if err := a.Click(proto.InputMouseButtonLeft, 1); err == nil {
-				time.Sleep(500 * time.Millisecond)
+				time.Sleep(200 * time.Millisecond)
 				// 如果当前节点有子节点
 				if ul, err := li.Element("div.plugin_pagetree_children_container ul"); err == nil {
-					log.Printf("[子菜单]: %s", ul.MustText())
+					// log.Printf("[子菜单]: %s", ul.MustText())
 					// 递归子节点
 					dirName := fmt.Sprintf("%d-%s", index, text)
 					(*bms)[index].Children = make([]pdfcpu.Bookmark, 0)
