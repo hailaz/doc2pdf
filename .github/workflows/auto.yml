@@ -25,6 +25,9 @@ jobs:
 
       - name: download doc
         run: |
+          sudo apt update
+          sudo apt install ttf-wqy-zenhei
+          fc-cache -f -v
           go run main.go
 
       - name: Create Github Release
