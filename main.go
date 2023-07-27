@@ -242,7 +242,7 @@ func (doc *DocDownload) ParseMenu(root *rod.Element, level int, dirPath string, 
 //
 // author: hailaz
 func (doc *DocDownload) SavePDF(filePath string, pageUrl string) {
-	fmt.Println(filePath)
+	// fmt.Println(filePath)
 	dir := path.Dir(filePath)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		fmt.Println("创建目录", dir)
@@ -289,7 +289,7 @@ func (doc *DocDownload) Move(targetDir string) error {
 	dst := path.Join(targetDir, path.Base(src))
 
 	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
-		// fmt.Println("创建目录", targetDir)
+		fmt.Println("创建目录", targetDir)
 		os.MkdirAll(targetDir, os.ModePerm)
 	}
 
