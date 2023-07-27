@@ -30,16 +30,16 @@ jobs:
           fc-cache -f -v
           go run main.go
 
-      - name: Create Github Release
-        id: create_release
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name:     ${{ github.ref }}
-          name: Doc Release ${{ github.ref }}
-          draft:        false
-          prerelease:   false
+      # - name: Create Github Release
+      #   id: create_release
+      #   uses: softprops/action-gh-release@v0.1.15
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     tag_name:     ${{ github.ref }}
+      #     name: Doc Release ${{ github.ref }}
+      #     draft:        false
+      #     prerelease:   false
       
       - name: Upload Release Asset
         id:   upload-release-asset
