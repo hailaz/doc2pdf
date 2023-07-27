@@ -63,7 +63,10 @@ func NewDocDownload(mainURL, outputDir string) *DocDownload {
 		u := launcher.New().Bin(binPath).MustLaunch()
 		browser = rod.New().ControlURL(u).MustConnect()
 	} else {
+		// 如果没有找到浏览器，就使用默认的浏览器
+		fmt.Println("没有找到浏览器，使用默认的浏览器，下载中...")
 		browser = rod.New().MustConnect()
+		fmt.Println("下载完成")
 	}
 	// 从mainURL获取baseURL
 	parsedURL, err := url.Parse(mainURL)
@@ -205,12 +208,12 @@ func (doc *DocDownload) ParseMenu(root *rod.Element, level int, dirPath string, 
 			page, _ := api.PageCountFile(path.Join(dirPath, fileName))
 			doc.pageFrom = doc.pageFrom + page
 
-			fmt.Printf("文件页码%d/%d： %s\n", page, doc.pageFrom, path.Join(dirPath, fileName))
+			fmt.Printf("文档累计页数%d，当前文件页数%d： %s\n", doc.pageFrom, page, path.Join(dirPath, fileName))
 
 		}
 		if a, err := li.Element("div.plugin_pagetree_childtoggle_container a"); err == nil {
 			if err := a.Click(proto.InputMouseButtonLeft, 1); err == nil {
-				time.Sleep(200 * time.Millisecond)
+				time.Sleep(400 * time.Millisecond)
 				// 如果当前节点有子节点
 				if ul, err := li.Element("div.plugin_pagetree_children_container ul"); err == nil {
 					// log.Printf("[子菜单]: %s", ul.MustText())
@@ -286,7 +289,7 @@ func (doc *DocDownload) Move(targetDir string) error {
 	dst := path.Join(targetDir, path.Base(src))
 
 	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
-		fmt.Println("创建目录", targetDir)
+		// fmt.Println("创建目录", targetDir)
 		os.MkdirAll(targetDir, os.ModePerm)
 	}
 
