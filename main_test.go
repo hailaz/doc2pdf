@@ -3,6 +3,7 @@ package main_test
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -15,6 +16,7 @@ import (
 	"github.com/go-rod/rod/lib/devices"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
+	"github.com/go-rod/rod/lib/utils"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 	"github.com/signintech/gopdf"
@@ -383,6 +385,7 @@ func FindMenu(browser *rod.Browser, root *rod.Element, baseUrl string, level int
 //
 // author: hailaz
 func TestSavePdf(t *testing.T) {
+	os.Remove("./output/test/test.pdf")
 	if binPath, exists := launcher.LookPath(); exists {
 		t.Log(binPath)
 		u := launcher.New().Bin(binPath).MustLaunch()
@@ -398,6 +401,7 @@ func TestSavePdf(t *testing.T) {
 		})
 		SavePdf(b, "./output/test/test.pdf", "https://goframe.org/pages/viewpage.action?pageId=57183756")
 	}
+	// time.Sleep(time.Second * 10)
 }
 
 // SavePdf description
@@ -427,7 +431,19 @@ func SavePdf(browser *rod.Browser, filePath string, pageUrl string) {
 		// if err==nil{
 		// 	menu.
 		// }
-		page.MustPDF(filePath)
+		var width float64 = 10
+		r, err := page.PDF(&proto.PagePrintToPDF{
+			// Landscape: true,
+			PaperWidth: &width,
+		})
+		if err != nil {
+			log.Printf("PDF[err]: %s", err)
+		}
+		bin, err := ioutil.ReadAll(r)
+		if err != nil {
+			log.Printf("ReadAll[err]: %s", err)
+		}
+		utils.OutputFile(filePath, bin)
 		page.Close()
 	}
 }

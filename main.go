@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/url"
 	"os"
@@ -9,8 +10,10 @@ import (
 	"time"
 
 	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/devices"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
+	"github.com/go-rod/rod/lib/utils"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 )
@@ -34,6 +37,7 @@ func main() {
 // author: hailaz
 func DownloadGfDocLatest() {
 	doc := NewDocDownload("https://goframe.org/display/gf", "./output/goframe-lastest")
+	doc.OpDelay = 600 * time.Millisecond
 	doc.Show()
 	doc.ParseMenu(doc.GetMenuRoot("ul.plugin_pagetree_children_list.plugin_pagetree_children_list_noleftspace ul"), 0, doc.OutputDir, &doc.bookmark)
 	doc.MrPDF(50)
@@ -50,6 +54,7 @@ type DocDownload struct {
 	pageFrom  int
 	baseURL   string
 	browser   *rod.Browser
+	OpDelay   time.Duration
 }
 
 // NewDocDownload description
@@ -68,6 +73,9 @@ func NewDocDownload(mainURL, outputDir string) *DocDownload {
 		browser = rod.New().MustConnect()
 		fmt.Println("下载完成")
 	}
+	browser = browser.DefaultDevice(devices.Device{
+		AcceptLanguage: "zh-CN",
+	})
 	// 从mainURL获取baseURL
 	parsedURL, err := url.Parse(mainURL)
 	if err != nil {
@@ -83,6 +91,7 @@ func NewDocDownload(mainURL, outputDir string) *DocDownload {
 		pageFrom:  1,
 		browser:   browser,
 		baseURL:   baseURL,
+		OpDelay:   200 * time.Millisecond,
 	}
 }
 
@@ -213,7 +222,7 @@ func (doc *DocDownload) ParseMenu(root *rod.Element, level int, dirPath string, 
 		}
 		if a, err := li.Element("div.plugin_pagetree_childtoggle_container a"); err == nil {
 			if err := a.Click(proto.InputMouseButtonLeft, 1); err == nil {
-				time.Sleep(400 * time.Millisecond)
+				time.Sleep(doc.OpDelay)
 				// 如果当前节点有子节点
 				if ul, err := li.Element("div.plugin_pagetree_children_container ul"); err == nil {
 					// log.Printf("[子菜单]: %s", ul.MustText())
@@ -250,8 +259,6 @@ func (doc *DocDownload) SavePDF(filePath string, pageUrl string) {
 	}
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		page := doc.browser.MustPage(pageUrl).MustWaitLoad()
-		// _ = proto.EmulationSetLocaleOverride{Locale: "zh-CN"}.Call(page)
-		// page.MustEmulate(devices.)
 		page.MustEval(`() => {
 	var tocMacroDiv = document.querySelector("div.toc-macro");
 	if(tocMacroDiv&&tocMacroDiv.style){
@@ -265,7 +272,19 @@ func (doc *DocDownload) SavePDF(filePath string, pageUrl string) {
 		// if err==nil{
 		// 	menu.
 		// }
-		page.MustPDF(filePath)
+		var width float64 = 15
+		r, err := page.PDF(&proto.PagePrintToPDF{
+			// Landscape: true,
+			PaperWidth: &width,
+		})
+		if err != nil {
+			log.Printf("PDF[err]: %s", err)
+		}
+		bin, err := ioutil.ReadAll(r)
+		if err != nil {
+			log.Printf("ReadAll[err]: %s", err)
+		}
+		utils.OutputFile(filePath, bin)
 		page.Close()
 	}
 }
