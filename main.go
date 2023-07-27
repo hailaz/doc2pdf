@@ -22,11 +22,23 @@ import (
 // author: hailaz
 func main() {
 	// doc := NewDocDownload("https://goframe.org/pages/viewpage.action?pageId=7296490", "./output/hailaz")
-	doc := NewDocDownload("https://goframe.org/display/gf", "./output/gfdoc")
+
+	// 复制文件到其它目录
+	DownloadGfDocLatest()
+}
+
+// DownloadGfDocLatest description
+//
+// createTime: 2023-07-27 15:26:56
+//
+// author: hailaz
+func DownloadGfDocLatest() {
+	doc := NewDocDownload("https://goframe.org/display/gf", "./output/goframe-lastest")
 	doc.Show()
 	doc.ParseMenu(doc.GetMenuRoot("ul.plugin_pagetree_children_list.plugin_pagetree_children_list_noleftspace ul"), 0, doc.OutputDir, &doc.bookmark)
 	doc.MrPDF(50)
 	doc.AddBookmarks()
+	log.Println(doc.Move("./dist"))
 }
 
 // DocDownload description
@@ -242,6 +254,8 @@ func (doc *DocDownload) SavePDF(filePath string, pageUrl string) {
 	if(tocMacroDiv&&tocMacroDiv.style){
 		tocMacroDiv.style.maxHeight = "5000px";
 	} 
+
+	
 }`)
 		// time.Sleep(time.Second * 10)
 		// menu,err:=page.Element("div.toc-macro")
@@ -251,4 +265,35 @@ func (doc *DocDownload) SavePDF(filePath string, pageUrl string) {
 		page.MustPDF(filePath)
 		page.Close()
 	}
+}
+
+// // 移除评论
+// var elementToRemove = document.getElementById('comments-section');
+// // 确认元素存在后再删除
+// if (elementToRemove) {
+// 	// 获取父级元素，并从父级中移除要删除的元素
+// 	var parentElement = elementToRemove.parentNode;
+// 	parentElement.removeChild(elementToRemove);
+// }
+
+// Move 移动文件
+//
+// createTime: 2023-07-27 15:07:55
+//
+// author: hailaz
+func (doc *DocDownload) Move(targetDir string) error {
+	src := doc.OutputDir + ".pdf"
+	dst := path.Join(targetDir, path.Base(src))
+
+	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+		fmt.Println("创建目录", targetDir)
+		os.MkdirAll(targetDir, os.ModePerm)
+	}
+
+	if _, err := os.Stat(src); os.IsNotExist(err) {
+		return err
+	}
+	// 复制文件
+	return os.Rename(src, dst)
+
 }
