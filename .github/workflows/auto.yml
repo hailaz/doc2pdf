@@ -4,11 +4,10 @@ on:
   push:
     # Sequence of patterns matched against refs/tags
     tags:
-    - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
 
 env:
   TZ: Asia/Shanghai
-
 
 jobs:
   build:
@@ -17,7 +16,7 @@ jobs:
     steps:
       - name: Checkout Github Code
         uses: actions/checkout@v3
-      
+
       - name: Set Up Golang Environment
         uses: actions/setup-go@v4
         with:
@@ -36,13 +35,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name:     ${{ github.ref }}
+          tag_name: ${{ github.ref }}
           name: Doc Release ${{ github.ref }}
-          draft:        false
-          prerelease:   false
-      
+          draft: false
+          prerelease: false
+
       - name: Upload Release Asset
-        id:   upload-release-asset
+        id: upload-release-asset
         uses: alexellis/upload-assets@0.4.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
