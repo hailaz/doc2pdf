@@ -2,7 +2,6 @@ package doc2pdf
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/url"
 	"os"
@@ -10,10 +9,7 @@ import (
 	"time"
 
 	"github.com/go-rod/rod"
-	"github.com/go-rod/rod/lib/devices"
 	"github.com/go-rod/rod/lib/launcher"
-	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 )
@@ -32,6 +28,7 @@ type DocDownload struct {
 	browser          *rod.Browser
 	OpDelay          time.Duration
 	SavePDFBefore    func(page *rod.Page)
+	PageToPDF        func(page *rod.Page, filePath string) error
 	MenuRootSelector string
 	ParseMenu        func(doc *DocDownload, root *rod.Element, level int, dirPath string, bms *[]pdfcpu.Bookmark)
 }
@@ -44,21 +41,19 @@ type DocDownload struct {
 func NewDocDownload(mainURL, outputDir string) *DocDownload {
 	var browser *rod.Browser
 	if binPath, exists := launcher.LookPath(); exists {
+		log.Println("找到浏览器", binPath)
 		u := launcher.New().Bin(binPath).MustLaunch()
 		browser = rod.New().ControlURL(u).MustConnect()
 	} else {
 		// 如果没有找到浏览器，就使用默认的浏览器
-		fmt.Println("没有找到浏览器，使用默认的浏览器，下载中...")
+		log.Println("没有找到浏览器，使用默认的浏览器，下载中...")
 		browser = rod.New().MustConnect()
-		fmt.Println("下载完成")
+		log.Println("下载完成")
 	}
-	browser = browser.DefaultDevice(devices.Device{
-		AcceptLanguage: "zh-CN",
-	})
 	// 从mainURL获取baseURL
 	parsedURL, err := url.Parse(mainURL)
 	if err != nil {
-		fmt.Println("url.Parse Error:", err)
+		log.Println("url.Parse Error:", err)
 		return nil
 	}
 	baseURL := fmt.Sprintf("%s://%s", parsedURL.Scheme, parsedURL.Host)
@@ -74,6 +69,7 @@ func NewDocDownload(mainURL, outputDir string) *DocDownload {
 		browser:        browser,
 		baseURL:        baseURL,
 		OpDelay:        200 * time.Millisecond,
+		PageToPDF:      PageToPDF,
 	}
 }
 
@@ -84,18 +80,23 @@ func NewDocDownload(mainURL, outputDir string) *DocDownload {
 // author: hailaz
 func (doc *DocDownload) Start() {
 	doc.Show()
+	log.Println("判断是否保存入口页")
 	if doc.IsDownloadMain {
 		doc.Index(&doc.bookmark)
 	}
 
 	if doc.ParseMenu != nil {
-		doc.ParseMenu(doc, doc.GetMenuRoot(doc.MenuRootSelector), 0, doc.OutputDir, &doc.bookmark)
+		log.Println("菜单解析")
+		root := doc.GetMenuRoot(doc.MenuRootSelector)
+		doc.ParseMenu(doc, root, 0, doc.OutputDir, &doc.bookmark)
 	}
 
+	log.Println("判断是否合并文件")
 	if len(doc.fileList) > 0 {
 		doc.MrPDF()
 	}
 
+	log.Println("判断是否有书签数据")
 	if len(doc.bookmark) > 0 {
 		doc.AddBookmarks()
 	}
@@ -223,22 +224,23 @@ func (doc *DocDownload) SavePDF(filePath string, pageUrl string) error {
 		if doc.SavePDFBefore != nil {
 			doc.SavePDFBefore(page)
 		}
-		var width float64 = 15
-		r, err := page.PDF(&proto.PagePrintToPDF{
-			// Landscape: true,
-			PaperWidth: &width,
-		})
-		if err != nil {
-			log.Printf("PDF[err]: %s", err)
-			return err
+		if doc.PageToPDF != nil {
+			if err := doc.PageToPDF(page, filePath); err != nil {
+				return err
+			}
 		}
-		bin, err := ioutil.ReadAll(r)
-		if err != nil {
-			log.Printf("ReadAll[err]: %s", err)
-			return err
-		}
-		return utils.OutputFile(filePath, bin)
+
 	}
+	return nil
+}
+
+// PageToPDF description
+//
+// createTime: 2023-07-28 16:45:39
+//
+// author: hailaz
+func PageToPDF(page *rod.Page, filePath string) error {
+	page.MustPDF(filePath)
 	return nil
 }
 

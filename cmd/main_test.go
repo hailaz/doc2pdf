@@ -260,14 +260,16 @@ func TestDownPdf(t *testing.T) {
 		t.Log(binPath)
 		u := launcher.New().Bin(binPath).MustLaunch()
 		b := rod.New().ControlURL(u).MustConnect()
-		b.MustPage("https://goframe.org/pages/viewpage.action?pageId=41900259").MustWaitLoad().MustPDF("sample.pdf")
-		t.Log(b.MustPage("http://www.hailaz.cn/docs/learn/index").MustElement("ul.theme-doc-sidebar-menu.menu__list").MustText())
+		// b.MustPage("https://goframe.org/pages/viewpage.action?pageId=41900259").MustWaitLoad().MustPDF("sample.pdf")
+		// t.Log(b.MustPage("http://www.hailaz.cn/docs/learn/index").MustElement("ul.theme-doc-sidebar-menu.menu__list").MustText())
 		bms := make([]pdfcpu.Bookmark, 0)
 		fileList := make([]string, 0)
 		pageFrom := 1
+		root := b.MustPage("http://www.hailaz.cn/docs/learn/index").MustElement("ul.theme-doc-sidebar-menu.menu__list")
+		log.Println("ParseDocusaurusMenu", root.MustText())
 		FindMenu(
 			b,
-			b.MustPage("http://www.hailaz.cn/docs/learn/index").MustElement("ul.theme-doc-sidebar-menu.menu__list"),
+			root,
 			"http://www.hailaz.cn", 0, "./output", &pageFrom, &fileList, &bms)
 		fmt.Println("wrote sample.pdf")
 		// g.Dump(bms)
@@ -285,6 +287,8 @@ func TestDownPdf(t *testing.T) {
 // author: hailaz
 func FindMenu(browser *rod.Browser, root *rod.Element, baseUrl string, level int, dirPath string, pageFrom *int, fileList *[]string, bms *[]pdfcpu.Bookmark) {
 	index := 0
+
+	log.Println("ParseDocusaurusMenu", root.MustText())
 	// 循环当前节点的li
 	for li, err := root.Element("li"); err == nil; li, err = li.Next() {
 		// 获取当前节点的a标签

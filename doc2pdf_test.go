@@ -6,6 +6,15 @@ import (
 	"github.com/hailaz/doc2pdf"
 )
 
+// TestDownloadHailaz description
+//
+// createTime: 2023-07-28 14:46:43
+//
+// author: hailaz
+func TestDownloadHailaz(t *testing.T) {
+	doc2pdf.DownloadHailaz()
+}
+
 // TestDownloadGoFrameLatest description
 //
 // createTime: 2023-07-28 14:46:43

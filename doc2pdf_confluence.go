@@ -2,13 +2,16 @@ package doc2pdf
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"path"
 	"sync"
 	"time"
 
 	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/devices"
 	"github.com/go-rod/rod/lib/proto"
+	"github.com/go-rod/rod/lib/utils"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 )
@@ -61,6 +64,11 @@ func DownloadGoFrameLatest() {
 // author: hailaz
 func DownloadConfluence(mainURL string, outputDir string) {
 	doc := NewDocDownload(mainURL, outputDir)
+
+	doc.GetBrowser().DefaultDevice(devices.Device{
+		AcceptLanguage: "zh-CN",
+	})
+
 	doc.OpDelay = 500 * time.Millisecond
 
 	doc.SavePDFBefore = func(page *rod.Page) {
@@ -82,6 +90,23 @@ func DownloadConfluence(mainURL string, outputDir string) {
 		// 	parentElement.removeChild(elementToRemove);
 		// }
 
+	}
+	doc.PageToPDF = func(page *rod.Page, filePath string) error {
+		var width float64 = 15
+		r, err := page.PDF(&proto.PagePrintToPDF{
+			// Landscape: true,
+			PaperWidth: &width,
+		})
+		if err != nil {
+			log.Printf("PDF[err]: %s", err)
+			return err
+		}
+		bin, err := ioutil.ReadAll(r)
+		if err != nil {
+			log.Printf("ReadAll[err]: %s", err)
+			return err
+		}
+		return utils.OutputFile(filePath, bin)
 	}
 	doc.MenuRootSelector = "ul.plugin_pagetree_children_list.plugin_pagetree_children_list_noleftspace ul"
 	doc.ParseMenu = ParseConfluenceMenu
@@ -140,7 +165,7 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 			page, _ := api.PageCountFile(path.Join(dirPath, fileName))
 			doc.pageFrom = doc.pageFrom + page
 
-			fmt.Printf("文档累计页数%d，当前文件页数%d： %s\n", doc.pageFrom, page, path.Join(dirPath, fileName))
+			log.Printf("文档累计页数%d，当前文件页数%d： %s\n", doc.pageFrom, page, path.Join(dirPath, fileName))
 
 		}
 		if a, err := li.Element("div.plugin_pagetree_childtoggle_container a"); err == nil {
@@ -155,15 +180,12 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 					doc.ParseMenu(doc, ul, level+1, path.Join(dirPath, dirName), &((*bms)[index].Children))
 					// index++
 				} else {
-					fmt.Println("没有子节点", err)
+					log.Println("没有子节点", err)
 				}
 			}
 
 		}
 		index++
-		// fmt.Println(li.Text())
 	}
 
-	// fmt.Println(root.MustElements("li").First().Text())
-	// fmt.Println(root.MustElements("li").Last().MustNext().MustText())
 }
