@@ -13,18 +13,20 @@ jobs:
     steps:
       - name: Checkout Github Code
         uses: actions/checkout@v3
-
+      - name: Set Timestamp Variable
+        run: echo "CURRENT_TIMESTAMP=$(date +'%Y%m%d%H%M%S')" >> $GITHUB_ENV
       - name: Autotag
         uses: phish108/autotag-action@v1.1.64
         id: autotag
         with:
           github-token: ${{ secrets.GITHUB_TOKEN}}
+          tag: "${{ env.CURRENT_TIMESTAMP }}"
           with-v: 'true'
       - name: Set Up Golang Environment
         uses: actions/setup-go@v4
         with:
           go-version: 1.20.4
-          
+
 
       - name: download doc
         run: |
