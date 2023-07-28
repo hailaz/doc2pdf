@@ -18,9 +18,10 @@ jobs:
       - name: Autotag
         uses: phish108/autotag-action@v1.1.64
         id: autotag
+        env: 
+          tag: "${{ env.CURRENT_TIMESTAMP }}"
         with:
           github-token: ${{ secrets.GITHUB_TOKEN}}
-          tag: "${{ env.CURRENT_TIMESTAMP }}"
           with-v: 'true'
       - name: Set Up Golang Environment
         uses: actions/setup-go@v4
