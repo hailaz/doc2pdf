@@ -19,7 +19,7 @@ jobs:
         uses: phish108/autotag-action@v1.1.64
         id: autotag
         env: 
-          tag: ${{ env.CURRENT_TIMESTAMP }}
+          tag: "666"
           github-token: ${{ secrets.GITHUB_TOKEN}}
           with-v: 'true'
       - name: Set Up Golang Environment
