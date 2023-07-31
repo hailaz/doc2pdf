@@ -26,7 +26,7 @@ var (
 		"v2.2":  "https://goframe.org/pages/viewpage.action?pageId=73224713",
 		"v2.3":  "https://goframe.org/pages/viewpage.action?pageId=92131939",
 		"v2.4":  "https://goframe.org/pages/viewpage.action?pageId=96885694",
-		// "v2.5":  "https://goframe.org/pages/viewpage.action?pageId=7297616",
+		"v2.5":  "https://goframe.org/display/gf",
 	}
 )
 
@@ -40,7 +40,7 @@ func DownloadGoFrameAll() {
 	for ver, main := range versionList {
 		ver, main := ver, main
 		wg.Add(1)
-		go func() {
+		func() {
 			DownloadConfluence(main, "./output/goframe-"+ver)
 			wg.Done()
 		}()
@@ -69,7 +69,7 @@ func DownloadConfluence(mainURL string, outputDir string) {
 		AcceptLanguage: "zh-CN",
 	})
 
-	doc.OpDelay = 500 * time.Millisecond
+	doc.OpDelay = 1000 * time.Millisecond
 
 	doc.SavePDFBefore = func(page *rod.Page) {
 		// 保存pdf前可自定义操作
@@ -91,6 +91,7 @@ func DownloadConfluence(mainURL string, outputDir string) {
 		// }
 
 	}
+	doc.MergePDFNums = 100
 	doc.PageToPDF = func(page *rod.Page, filePath string) error {
 		var width float64 = 15
 		r, err := page.PDF(&proto.PagePrintToPDF{
@@ -112,7 +113,7 @@ func DownloadConfluence(mainURL string, outputDir string) {
 	doc.ParseMenu = ParseConfluenceMenu
 	doc.Start()
 	// 复制文件到其它目录
-	// log.Println(doc.Move("./dist"))
+	log.Println(doc.Move("./dist"))
 }
 
 // ParseConfluenceMenu 解析菜单
@@ -169,6 +170,7 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 
 		}
 		if a, err := li.Element("div.plugin_pagetree_childtoggle_container a"); err == nil {
+			time.Sleep(100 * time.Millisecond)
 			if err := a.Click(proto.InputMouseButtonLeft, 1); err == nil {
 				time.Sleep(doc.OpDelay)
 				// 如果当前节点有子节点

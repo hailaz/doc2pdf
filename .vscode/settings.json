@@ -1,5 +1,5 @@
 {
-    "go.testTimeout": "3000s",
+    "go.testTimeout": "30000000s",
     "go.testEnvVars": {},
     "go.testFlags": [
         "-v",
