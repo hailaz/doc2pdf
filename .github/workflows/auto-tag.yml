@@ -44,7 +44,7 @@ jobs:
           sudo apt install ttf-wqy-zenhei
           fc-cache -f -v
           ls -la
-          ls -la output
+          # ls -la output
       - name: download doc
         run: |
           ./doc2pdf
