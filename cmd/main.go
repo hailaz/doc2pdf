@@ -10,5 +10,6 @@ import "github.com/hailaz/doc2pdf"
 func main() {
 	// doc := NewDocDownload("https://goframe.org/pages/viewpage.action?pageId=7296490", "./output/hailaz")
 
-	doc2pdf.DownloadGoFrameAll()
+	// doc2pdf.DownloadGoFrameAll()
+	doc2pdf.DownloadGoFrameLatest()
 }
