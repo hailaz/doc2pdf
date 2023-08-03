@@ -22,6 +22,7 @@ jobs:
         run: |
           echo "GITHUB_MY_TAG=$(date +v%Y.%m.%d%H%M)" >> $GITHUB_ENV
           echo "GITHUB_CACHE_KEY=$(date +v%Y-%m-%d-%H)" >> $GITHUB_ENV
+          echo "GITHUB_CACHE_KEY_D=$(date +v%Y-%m-%d-)" >> $GITHUB_ENV
           echo "GITHUB_CACHE_KEY_M=$(date +v%Y-%m-)" >> $GITHUB_ENV
       - name: 输出生成环境变量
         run: |
@@ -34,6 +35,7 @@ jobs:
             dist
           key: ${{ env.GITHUB_CACHE_KEY }}
           restore-keys: |
+            ${{ env.GITHUB_CACHE_KEY_D }}
             ${{ env.GITHUB_CACHE_KEY_M }}
             v2023.08.03
             cache-key
