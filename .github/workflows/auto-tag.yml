@@ -35,6 +35,7 @@ jobs:
       - name: download doc
         run: |
           ./doc2pdf
+          ls -la
 
       - name: Create Github Release
         id: create_release
