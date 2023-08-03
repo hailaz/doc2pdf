@@ -43,12 +43,11 @@ jobs:
           sudo apt update
           sudo apt install ttf-wqy-zenhei
           fc-cache -f -v
+          ls -la
+          ls -la output
       - name: download doc
         run: |
-          # ./doc2pdf
-          echo ${{ github.ref }}
-          mkdir -p dist
-          echo ${{ env.GITHUB_MY_TAG }} > dist/tag.txt
+          ./doc2pdf
           ls -la
           ls -la dist
 
@@ -63,7 +62,7 @@ jobs:
           draft: false
           prerelease: false
           files: |
-            dist/tag.txt
+            dist/goframe-latest.pdf
 
       # - name: Upload Release Asset
       #   id: upload-release-asset
