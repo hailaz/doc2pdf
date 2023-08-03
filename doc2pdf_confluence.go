@@ -207,11 +207,11 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 		if a, err := li.Element("div.plugin_pagetree_childtoggle_container a"); err == nil {
 			time.Sleep(100 * time.Millisecond)
 			if err := a.Click(proto.InputMouseButtonLeft, 1); err == nil {
-
+				time.Sleep(200 * time.Millisecond)
 				// 如果当前节点有子节点
-				count := 0
+				count := 1
 				for {
-					time.Sleep(doc.OpDelay)
+					time.Sleep(100 * time.Millisecond)
 					if ul, err := li.Element("div.plugin_pagetree_children_container ul"); err == nil {
 						// log.Printf("[子菜单]: %s", ul.MustText())
 						// 递归子节点
@@ -219,15 +219,17 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 						(*bms)[index].Children = make([]pdfcpu.Bookmark, 0)
 						doc.ParseMenu(doc, ul, level+1, path.Join(dirPath, dirName), &((*bms)[index].Children))
 						// index++
+						log.Printf("在第%d次找到子节点\n", count)
 						break
 					} else {
-						log.Printf("第%d次没有子节点: %s\n", count, err)
+						log.Printf("尝试第%d次，没有子节点，待重试: %s\n", count, err)
 					}
-					count++
-					if count > 50 {
-						log.Printf("%d真的没有子节点: %s\n", count, err)
+
+					if count >= 50 {
+						log.Printf("经过%d次，真的没有子节点\n", count)
 						break
 					}
+					count++
 				}
 
 			}
