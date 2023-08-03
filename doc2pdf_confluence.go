@@ -18,15 +18,15 @@ import (
 
 var (
 	versionList map[string]string = map[string]string{
-		"v1.14": "https://goframe.org/display/gf114/GoFrame+%28ZH%29-v1.14",
-		"v1.15": "https://goframe.org/pages/viewpage.action?pageId=7297616",
-		"v1.16": "https://goframe.org/display/gf116/GoFrame+%28ZH%29-v1.16",
-		"v2.0":  "https://goframe.org/pages/viewpage.action?pageId=61149363",
-		"v2.1":  "https://goframe.org/pages/viewpage.action?pageId=59864464",
-		"v2.2":  "https://goframe.org/pages/viewpage.action?pageId=73224713",
-		"v2.3":  "https://goframe.org/pages/viewpage.action?pageId=92131939",
-		"v2.4":  "https://goframe.org/pages/viewpage.action?pageId=96885694",
-		"v2.5":  "https://goframe.org/display/gf",
+		"v1.14":  "https://goframe.org/display/gf114/GoFrame+%28ZH%29-v1.14",
+		"v1.15":  "https://goframe.org/pages/viewpage.action?pageId=7297616",
+		"v1.16":  "https://goframe.org/display/gf116/GoFrame+%28ZH%29-v1.16",
+		"v2.0":   "https://goframe.org/pages/viewpage.action?pageId=61149363",
+		"v2.1":   "https://goframe.org/pages/viewpage.action?pageId=59864464",
+		"v2.2":   "https://goframe.org/pages/viewpage.action?pageId=73224713",
+		"v2.3":   "https://goframe.org/pages/viewpage.action?pageId=92131939",
+		"v2.4":   "https://goframe.org/pages/viewpage.action?pageId=96885694",
+		"latest": "https://goframe.org/display/gf",
 	}
 )
 
