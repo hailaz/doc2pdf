@@ -25,12 +25,10 @@ jobs:
       - name: 输出Tag
         run: echo ${{ env.GITHUB_MY_TAG }}
       - name: Autotag
-        uses: hailaz/autotag-action@v1.2.1
-        id: autotag
-        with: 
-          github-token: ${{ secrets.GITHUB_TOKEN}}
-          with-v: 'true'
-          tag: ${{ env.GITHUB_MY_TAG }}
+        uses: cardinalby/git-tag-action@master
+        env:
+          TAG: ${{ env.GITHUB_MY_TAG }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
          
 
       # - name: Set Up Golang Environment
@@ -41,8 +39,7 @@ jobs:
 
       - name: 准备环境
         run: |
-          echo ${{ steps.autotag.outputs.tag }}
-          echo ${{ steps.autotag.outputs.new-tag }}
+          echo ${{ env.GITHUB_MY_TAG }}
           sudo apt update
           sudo apt install ttf-wqy-zenhei
           fc-cache -f -v
@@ -51,7 +48,7 @@ jobs:
           # ./doc2pdf
           echo ${{ github.ref }}
           mkdir -p dist
-          echo ${{ steps.autotag.outputs.new-tag }} > dist/tag.txt
+          echo ${{ env.GITHUB_MY_TAG }} > dist/tag.txt
           ls -la
           ls -la dist
 
@@ -61,8 +58,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: "${{ steps.autotag.outputs.new-tag }}"
-          name: "${{ steps.autotag.outputs.new-tag }}"
+          tag_name: "${{ env.GITHUB_MY_TAG }}"
+          name: "${{ env.GITHUB_MY_TAG }}"
           draft: false
           prerelease: false
           files: |
