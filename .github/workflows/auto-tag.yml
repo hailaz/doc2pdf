@@ -10,9 +10,15 @@ jobs:
     runs-on: ubuntu-22.04
     permissions:
       contents: write
+      packages: write
     steps:
       - name: Checkout Github Code
         uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: output
+          key: "cache-key"
       - name: Autotag
         uses: phish108/autotag-action@v1.1.64
         id: autotag
@@ -36,6 +42,7 @@ jobs:
         run: |
           ./doc2pdf
           ls -la
+          ls -la dist
 
       - name: Create Github Release
         id: create_release
