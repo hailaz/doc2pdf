@@ -74,11 +74,23 @@ func DownloadConfluence(mainURL string, outputDir string) {
 	doc.SavePDFBefore = func(page *rod.Page) {
 		// 保存pdf前可自定义操作
 		page.MustEval(`() => {
+			// 右侧菜单加长显示
 			var tocMacroDiv = document.querySelector("div.toc-macro");
 			if(tocMacroDiv&&tocMacroDiv.style){
 				tocMacroDiv.style.maxHeight = "5000px";
 			} 
-		
+
+
+			// 代码块自动换行
+			
+			// 获取所有的 <pre> 元素
+			const preElements = document.querySelectorAll('pre');
+
+			// 循环遍历每个元素并设置样式
+			preElements.forEach((preElement) => {
+			preElement.style.whiteSpace = 'pre-wrap';
+			preElement.style.wordWrap = 'break-word';
+			});
 			
 		}`)
 		// // 移除评论
@@ -94,26 +106,49 @@ func DownloadConfluence(mainURL string, outputDir string) {
 	doc.MergePDFNums = 100
 	doc.PageToPDF = func(page *rod.Page, filePath string) error {
 		var width float64 = 15
-		r, err := page.PDF(&proto.PagePrintToPDF{
-			// Landscape: true,
-			PaperWidth: &width,
-		})
+		req := &proto.PagePrintToPDF{
+			PrintBackground: true,
+			PaperWidth:      &width,
+		}
+
+		err := PageToPDFWithCfg(page, filePath, req)
 		if err != nil {
-			log.Printf("PDF[err]: %s", err)
 			return err
 		}
-		bin, err := ioutil.ReadAll(r)
-		if err != nil {
-			log.Printf("ReadAll[err]: %s", err)
-			return err
+		// 获取页数，合并成单页
+		pageCount, err := api.PageCountFile(filePath)
+		if err == nil {
+			height := 11 * float64(pageCount)
+			req.PaperHeight = &height
+			return PageToPDFWithCfg(page, filePath, req)
 		}
-		return utils.OutputFile(filePath, bin)
+
+		return nil
 	}
 	doc.MenuRootSelector = "ul.plugin_pagetree_children_list.plugin_pagetree_children_list_noleftspace ul"
 	doc.ParseMenu = ParseConfluenceMenu
 	doc.Start()
 	// 复制文件到其它目录
 	log.Println(doc.Move("./dist"))
+}
+
+// PageToPDFWithCfg description
+//
+// createTime: 2023-08-03 11:02:25
+//
+// author: hailaz
+func PageToPDFWithCfg(page *rod.Page, filePath string, req *proto.PagePrintToPDF) error {
+	r, err := page.PDF(req)
+	if err != nil {
+		log.Printf("PDF[err]: %s", err)
+		return err
+	}
+	bin, err := ioutil.ReadAll(r)
+	if err != nil {
+		log.Printf("ReadAll[err]: %s", err)
+		return err
+	}
+	return utils.OutputFile(filePath, bin)
 }
 
 // ParseConfluenceMenu 解析菜单

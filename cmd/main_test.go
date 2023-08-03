@@ -2,7 +2,6 @@ package main_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path"
@@ -12,7 +11,7 @@ import (
 	"github.com/go-rod/rod/lib/devices"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
+	"github.com/hailaz/doc2pdf"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 )
@@ -82,21 +81,24 @@ func MRList(fileList []string, dirPath string, fileName string, preNum int) {
 //
 // author: hailaz
 func TestSavePdf(t *testing.T) {
-	os.Remove("./output/test/test.pdf")
+	outputFile := "./output/test/test.pdf"
+	mainURL := "https://goframe.org/pages/viewpage.action?pageId=1115782"
+	var b *rod.Browser
 	if binPath, exists := launcher.LookPath(); exists {
 		t.Log(binPath)
 		u := launcher.New().Bin(binPath).MustLaunch()
-		b := rod.New().ControlURL(u).MustConnect()
-		b = b.DefaultDevice(devices.Device{
-			AcceptLanguage: "zh-CN",
-		})
-		SavePdf(b, "./output/test/test.pdf", "https://goframe.org/pages/viewpage.action?pageId=57183756")
+		b = rod.New().ControlURL(u).MustConnect()
+
 	} else {
-		b := rod.New().MustConnect()
-		b = b.DefaultDevice(devices.Device{
-			AcceptLanguage: "zh-CN",
-		})
-		SavePdf(b, "./output/test/test.pdf", "https://goframe.org/pages/viewpage.action?pageId=57183756")
+		b = rod.New().MustConnect()
+
+	}
+	b.DefaultDevice(devices.Device{
+		AcceptLanguage: "zh-CN",
+	})
+	err := SavePdf(b, outputFile, mainURL)
+	if err != nil {
+		t.Error(err)
 	}
 	// time.Sleep(time.Second * 10)
 }
@@ -106,15 +108,16 @@ func TestSavePdf(t *testing.T) {
 // createTime: 2023-07-11 16:51:31
 //
 // author: hailaz
-func SavePdf(browser *rod.Browser, filePath string, pageUrl string) {
+func SavePdf(browser *rod.Browser, filePath string, pageUrl string) error {
 	fmt.Println(filePath)
 	dir := path.Dir(filePath)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		fmt.Println("创建目录", dir)
 		os.MkdirAll(dir, os.ModePerm)
 	}
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+	if _, err := os.Stat(filePath); os.IsNotExist(err) || !os.IsNotExist(err) {
 		page := browser.MustPage(pageUrl).MustWaitLoad()
+		defer page.Close()
 		// _ = proto.EmulationSetLocaleOverride{Locale: "zh-CN"}.Call(page)
 		// page.MustEmulate(devices.)
 		page.MustEval(`() => {
@@ -122,27 +125,52 @@ func SavePdf(browser *rod.Browser, filePath string, pageUrl string) {
 	if(tocMacroDiv&&tocMacroDiv.style){
 		tocMacroDiv.style.maxHeight = "5000px";
 	} 
+
+	// 获取所有的 <pre> 元素
+	const preElements = document.querySelectorAll('pre');
+
+	// 循环遍历每个元素并设置样式
+	preElements.forEach((preElement) => {
+	preElement.style.whiteSpace = 'pre-wrap';
+	preElement.style.wordWrap = 'break-word';
+	});
+
+
+	
+
 }`)
+
+		//  wget -O gf https://github.com/gogf/gf/releases/latest/download/gf_$(go env GOOS)_$(go env GOARCH) && chmod +x gf && ./gf install -y && rm ./gf
+		// 		val := page.MustEval(`() => {
+		// 	return document.body.offsetHeight;
+		// }`)
+		// 		log.Printf("offsetHeight: %v", val)
+
 		// time.Sleep(time.Second * 10)
 		// menu,err:=page.Element("div.toc-macro")
 		// if err==nil{
 		// 	menu.
 		// }
-		var width float64 = 10
-		r, err := page.PDF(&proto.PagePrintToPDF{
-			// Landscape: true,
-			PaperWidth: &width,
-		})
-		if err != nil {
-			log.Printf("PDF[err]: %s", err)
+		var width float64 = 15
+		req := &proto.PagePrintToPDF{
+			PrintBackground: true,
+			PaperWidth:      &width,
 		}
-		bin, err := ioutil.ReadAll(r)
+
+		err := doc2pdf.PageToPDFWithCfg(page, filePath, req)
 		if err != nil {
-			log.Printf("ReadAll[err]: %s", err)
+			return err
 		}
-		utils.OutputFile(filePath, bin)
-		page.Close()
+		// 获取页数，合并成单页
+		pageCount, err := api.PageCountFile(filePath)
+		if err == nil {
+			height := 11 * float64(pageCount)
+			req.PaperHeight = &height
+			return doc2pdf.PageToPDFWithCfg(page, filePath+".pdf", req)
+		}
+
 	}
+	return nil
 }
 
 // TestMerge description
