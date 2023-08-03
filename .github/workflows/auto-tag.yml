@@ -8,9 +8,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    permissions:
-      contents: write
-      packages: write
+    # permissions:
+    #   contents: write
+    #   packages: write
     steps:
       - name: Checkout Github Code
         uses: actions/checkout@v3
@@ -57,11 +57,13 @@ jobs:
           name: "v${{ steps.autotag.outputs.new-tag }}"
           draft: false
           prerelease: false
+          files: |
+            dist/tag.txt
 
-      - name: Upload Release Asset
-        id: upload-release-asset
-        uses: alexellis/upload-assets@0.4.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          asset_paths: '["dist/*"]'
+      # - name: Upload Release Asset
+      #   id: upload-release-asset
+      #   uses: alexellis/upload-assets@0.4.0
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     asset_paths: '["dist/*"]'
