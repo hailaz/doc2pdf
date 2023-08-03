@@ -41,6 +41,7 @@ jobs:
       - name: download doc
         run: |
           # ./doc2pdf
+          echo ${{ github.ref }}
           mkdir -p dist
           echo ${{ steps.autotag.outputs.new-tag }} > dist/tag.txt
           ls -la
