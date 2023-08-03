@@ -15,17 +15,20 @@ jobs:
     steps:
       - name: Checkout Github Code
         uses: actions/checkout@v3
+      
+      - name: 日期Tag
+        run: |
+          echo "GITHUB_MY_TAG=$(date +v%Y.%m.%d%H%M)" >> $GITHUB_ENV
+          echo "GITHUB_CACHE_KEY=$(date +v%Y.%m.%d)" >> $GITHUB_ENV
+      - name: 输出Tag
+        run: echo ${{ env.GITHUB_MY_TAG }}
       - uses: actions/cache@v3
         id: cache
         with:
           path: output
-          key: "$(date +v%Y.%m.%d)"
+          key: ${{ env.GITHUB_CACHE_KEY }}
           restore-keys: |
-            "cache-key"
-      - name: 日期Tag
-        run: echo "GITHUB_MY_TAG=$(date +v%Y.%m.%d%H%M)" >> $GITHUB_ENV
-      - name: 输出Tag
-        run: echo ${{ env.GITHUB_MY_TAG }}
+            cache-key
       - name: Autotag
         uses: cardinalby/git-tag-action@master
         env:
