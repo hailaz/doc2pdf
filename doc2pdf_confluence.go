@@ -221,10 +221,11 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 						// index++
 						break
 					} else {
-						log.Println("没有子节点", err)
+						log.Printf("第%d次没有子节点: %s\n", count, err)
 					}
 					count++
-					if count > 20 {
+					if count > 50 {
+						log.Printf("%d真的没有子节点: %s\n", count, err)
 						break
 					}
 				}
