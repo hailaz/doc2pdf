@@ -25,7 +25,7 @@ jobs:
       - name: 输出Tag
         run: echo ${{ env.GITHUB_MY_TAG }}
       - name: Autotag
-        uses: hailaz/autotag-action@v1.2.0
+        uses: hailaz/autotag-action@master
         id: autotag
         with: 
           github-token: ${{ secrets.GITHUB_TOKEN}}
