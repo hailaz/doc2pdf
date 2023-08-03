@@ -69,7 +69,7 @@ func DownloadConfluence(mainURL string, outputDir string) {
 		AcceptLanguage: "zh-CN",
 	})
 
-	doc.OpDelay = 1000 * time.Millisecond
+	doc.OpDelay = 100 * time.Millisecond
 
 	doc.SavePDFBefore = func(page *rod.Page) {
 		// 保存pdf前可自定义操作
@@ -207,18 +207,28 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 		if a, err := li.Element("div.plugin_pagetree_childtoggle_container a"); err == nil {
 			time.Sleep(100 * time.Millisecond)
 			if err := a.Click(proto.InputMouseButtonLeft, 1); err == nil {
-				time.Sleep(doc.OpDelay)
+
 				// 如果当前节点有子节点
-				if ul, err := li.Element("div.plugin_pagetree_children_container ul"); err == nil {
-					// log.Printf("[子菜单]: %s", ul.MustText())
-					// 递归子节点
-					dirName := fmt.Sprintf("%d-%s", index, text)
-					(*bms)[index].Children = make([]pdfcpu.Bookmark, 0)
-					doc.ParseMenu(doc, ul, level+1, path.Join(dirPath, dirName), &((*bms)[index].Children))
-					// index++
-				} else {
-					log.Println("没有子节点", err)
+				count := 0
+				for {
+					time.Sleep(doc.OpDelay)
+					if ul, err := li.Element("div.plugin_pagetree_children_container ul"); err == nil {
+						// log.Printf("[子菜单]: %s", ul.MustText())
+						// 递归子节点
+						dirName := fmt.Sprintf("%d-%s", index, text)
+						(*bms)[index].Children = make([]pdfcpu.Bookmark, 0)
+						doc.ParseMenu(doc, ul, level+1, path.Join(dirPath, dirName), &((*bms)[index].Children))
+						// index++
+						break
+					} else {
+						log.Println("没有子节点", err)
+					}
+					count++
+					if count > 20 {
+						break
+					}
 				}
+
 			}
 
 		}
