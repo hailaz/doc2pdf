@@ -4,7 +4,8 @@ on:
   push:
     branches:
       - main
-
+env:
+  TZ: "Asia/Shanghai"
 jobs:
   build:
     runs-on: ubuntu-22.04
@@ -24,10 +25,8 @@ jobs:
       - name: 输出Tag
         run: echo ${{ env.GITHUB_MY_TAG }}
       - name: Autotag
-        uses: phish108/autotag-action@v1.1.64
+        uses: hailaz/autotag-action@v1.2.0
         id: autotag
-        env:
-          tag: ${{ env.GITHUB_MY_TAG }}
         with: 
           github-token: ${{ secrets.GITHUB_TOKEN}}
           with-v: 'true'
