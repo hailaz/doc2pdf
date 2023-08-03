@@ -32,7 +32,7 @@ jobs:
           with-v: 'true'
           tag: ${{ env.GITHUB_MY_TAG }}
          
-          
+
       # - name: Set Up Golang Environment
       #   uses: actions/setup-go@v4
       #   with:
@@ -61,8 +61,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: "v${{ steps.autotag.outputs.new-tag }}"
-          name: "v${{ steps.autotag.outputs.new-tag }}"
+          tag_name: "${{ steps.autotag.outputs.new-tag }}"
+          name: "${{ steps.autotag.outputs.new-tag }}"
           draft: false
           prerelease: false
           files: |
