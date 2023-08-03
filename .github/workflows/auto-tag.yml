@@ -30,9 +30,7 @@ jobs:
       - uses: actions/cache@v3
         id: cache
         with:
-          path: |
-            output
-            dist
+          path: output
           key: ${{ env.GITHUB_CACHE_KEY }}
           restore-keys: |
             ${{ env.GITHUB_CACHE_KEY_D }}
