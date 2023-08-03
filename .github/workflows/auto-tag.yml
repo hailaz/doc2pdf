@@ -40,7 +40,9 @@ jobs:
           fc-cache -f -v
       - name: download doc
         run: |
-          ./doc2pdf
+          # ./doc2pdf
+          mkdir -p dist
+          echo ${{ steps.autotag.outputs.new-tag }} > dist/tag.txt
           ls -la
           ls -la dist
 
