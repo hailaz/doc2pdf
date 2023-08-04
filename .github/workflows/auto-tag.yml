@@ -59,6 +59,7 @@ jobs:
           sudo apt install ttf-wqy-zenhei
           fc-cache -f -v
           ls -la
+          rm -rf output/goframe-latest
           # ls -la output
       - name: download doc
         run: |
