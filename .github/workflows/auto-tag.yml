@@ -2,10 +2,10 @@
 name: 下载文档并发布
 on:
   push:
-    branches:
-      - main
+    paths:
+      - 'change.log'
   schedule:
-    - cron: '25 * * * *'
+    - cron: '0 15 * * *'
 env:
   TZ: "Asia/Shanghai"
 jobs:
