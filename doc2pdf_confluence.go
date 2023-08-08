@@ -48,6 +48,19 @@ func DownloadGoFrameAll() {
 	wg.Wait()
 }
 
+// DownloadGoFrameWithVersion description
+//
+// createTime: 2023-08-08 18:34:08
+//
+// author: hailaz
+func DownloadGoFrameWithVersion(version string) {
+	if main, ok := versionList[version]; ok {
+		DownloadConfluence(main, "./output/goframe-"+version)
+	} else {
+		log.Printf("版本号不存在")
+	}
+}
+
 // DownloadGoFrameLatest description
 //
 // createTime: 2023-07-28 15:21:19
