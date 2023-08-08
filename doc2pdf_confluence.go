@@ -91,6 +91,12 @@ func DownloadConfluence(mainURL string, outputDir string) {
 			preElement.style.whiteSpace = 'pre-wrap';
 			preElement.style.wordWrap = 'break-word';
 			});
+
+			// 移除页脚
+			var element = document.getElementById("footer");
+			if (element) {
+				element.parentNode.removeChild(element);
+			}
 			
 		}`)
 		// // 移除评论

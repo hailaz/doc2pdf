@@ -134,7 +134,11 @@ func SavePdf(browser *rod.Browser, filePath string, pageUrl string) error {
 	preElement.style.whiteSpace = 'pre-wrap';
 	preElement.style.wordWrap = 'break-word';
 	});
-
+	var element = document.getElementById("footer");
+	if (element) {
+		element.parentNode.removeChild(element);
+	}
+	
 
 	
 
