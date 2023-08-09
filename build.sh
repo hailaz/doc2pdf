@@ -1,3 +1,3 @@
 #!/bin/sh
 
-go build -o doc2pdf cmd/main.go
+go build -o cmd/doc2pdf doc2pdf/main.go

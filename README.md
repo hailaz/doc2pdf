@@ -2,6 +2,18 @@
 
 https://go-rod.github.io/i18n/zh-CN/#/
 
+## 安装
+
+```shell
+go install github.com/hailaz/doc2pdf/doc2pdf@main
+```
+
+## 使用
+
+```shell
+doc2pdf -h
+```
+
 # ubuntu
 
 ## 安装字体
