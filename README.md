@@ -5,7 +5,7 @@ https://go-rod.github.io/i18n/zh-CN/#/
 ## 安装
 
 ```shell
-go install github.com/hailaz/doc2pdf/doc2pdf@main
+go install github.com/hailaz/doc2pdf/doc2pdf@latest
 ```
 
 ## 使用
