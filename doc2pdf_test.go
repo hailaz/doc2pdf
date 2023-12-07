@@ -32,3 +32,12 @@ func TestDownloadGoFrameLatest(t *testing.T) {
 func TestDownloadGoFrameAll(t *testing.T) {
 	doc2pdf.DownloadGoFrameAll()
 }
+
+// TestDownloadRuanyifeng description
+//
+// createTime: 2023-12-07 16:03:21
+//
+// author: hailaz
+func TestDownloadRuanyifeng(t *testing.T) {
+	doc2pdf.DownloadRuanyifengWeekly()
+}

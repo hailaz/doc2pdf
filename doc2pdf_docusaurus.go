@@ -13,7 +13,7 @@ import (
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 )
 
-// DownloadGoFrameLatest description
+// DownloadHailaz description
 //
 // createTime: 2023-07-28 15:21:19
 //
@@ -24,7 +24,7 @@ func DownloadHailaz() {
 	DownloadDocusaurus("https://www.hailaz.cn/docs/live/", "./output/hailaz-live")
 }
 
-// DownloadConfluence 下载confluence文档
+// DownloadDocusaurus 下载confluence文档
 //
 // createTime: 2023-07-27 15:26:56
 //
