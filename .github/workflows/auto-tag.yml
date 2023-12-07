@@ -63,7 +63,9 @@ jobs:
           # ls -la output
       - name: download doc
         run: |
-          cmd/doc2pdf gf
+          cmd/doc2pdf/doc2pdf gf
+      - name: show files
+        run: |
           ls -la
           ls -la dist
 
