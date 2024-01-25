@@ -10,7 +10,7 @@
 ## 安装
 
 ```shell
-go install github.com/hailaz/doc2pdf/doc2pdf@latest
+go install github.com/hailaz/doc2pdf/cmd/doc2pdf@latest
 ```
 
 ## 使用
