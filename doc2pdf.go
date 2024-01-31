@@ -6,10 +6,15 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
+	"strings"
 	"time"
 
+	md "github.com/JohannesKaufmann/html-to-markdown"
+	"github.com/PuerkitoBio/goquery"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
+	"github.com/gogf/gf/v2/os/gfile"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 )
@@ -29,6 +34,7 @@ type DocDownload struct {
 	OpDelay          time.Duration
 	SavePDFBefore    func(page *rod.Page)
 	PageToPDF        func(page *rod.Page, filePath string) error
+	PageToMD         func(page *rod.Page, filePath string) error
 	MenuRootSelector string
 	ParseMenu        func(doc *DocDownload, root *rod.Element, level int, dirPath string, bms *[]pdfcpu.Bookmark)
 }
@@ -59,7 +65,7 @@ func NewDocDownload(mainURL, outputDir string) *DocDownload {
 	baseURL := fmt.Sprintf("%s://%s", parsedURL.Scheme, parsedURL.Host)
 	return &DocDownload{
 		MainURL:        mainURL,
-		OutputDir:      outputDir,
+		OutputDir:      path.Join(outputDir),
 		MergePDFNums:   20,
 		TempSuffix:     ".temp.pdf",
 		IsDownloadMain: false,
@@ -198,10 +204,12 @@ func (doc *DocDownload) Index(bms *[]pdfcpu.Bookmark) {
 		PageFrom: doc.pageFrom,
 	})
 
-	fileName := fmt.Sprintf("%s.pdf", text)
+	fileName := fmt.Sprintf("%s.md", text)
 	doc.fileList = append(doc.fileList, path.Join(dirPath, fileName))
 
 	doc.SavePDF(path.Join(dirPath, fileName), doc.MainURL)
+	fileNameMD := fmt.Sprintf("%s.md", text)
+	doc.SaveMD(path.Join(dirPath, fileNameMD), doc.MainURL, 0)
 
 	page, _ := api.PageCountFile(path.Join(dirPath, fileName))
 	doc.pageFrom = doc.pageFrom + page
@@ -229,7 +237,45 @@ func (doc *DocDownload) SavePDF(filePath string, pageUrl string) error {
 				return err
 			}
 		}
+	}
+	return nil
+}
 
+// SaveMD description
+//
+// createTime: 2023-07-11 16:51:31
+//
+// author: hailaz
+func (doc *DocDownload) SaveMD(filePath string, pageUrl string, plen int) error {
+	filePath = strings.ReplaceAll(filePath, "(🔥重点🔥)", "")
+	filePath = strings.ReplaceAll(filePath, "🔥", "")
+	filePath = strings.ReplaceAll(filePath, "(", "-")
+	filePath = strings.ReplaceAll(filePath, ")", "")
+	filePath = strings.Replace(filePath, doc.OutputDir, doc.OutputDir+"-md", 1)
+	// markdown
+	fmt.Println("filePath", filePath, doc.OutputDir, plen)
+	// if plen==1{
+	// 	filePath=filePath
+	// }
+	dir := path.Dir(filePath)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		fmt.Println("创建目录", dir)
+		os.MkdirAll(dir, os.ModePerm)
+	}
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		page := doc.browser.MustPage(pageUrl).MustWaitLoad()
+		defer page.Close()
+
+		dir = path.Dir(filePath)
+		if _, err := os.Stat(dir); os.IsNotExist(err) {
+			fmt.Println("创建目录", dir)
+			os.MkdirAll(dir, os.ModePerm)
+		}
+		if doc.PageToMD != nil {
+			if err := doc.PageToMD(page, filePath); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -241,6 +287,98 @@ func (doc *DocDownload) SavePDF(filePath string, pageUrl string) error {
 // author: hailaz
 func PageToPDF(page *rod.Page, filePath string) error {
 	page.MustPDF(filePath)
+	return nil
+}
+
+// PageToMD description
+//
+// createTime: 2023-07-28 16:45:39
+//
+// author: hailaz
+func PageToMD(page *rod.Page, filePath string) error {
+	// page.GetResource()
+
+	// page.MustEval(`() => {
+	// 	// 移除菜单
+	// 	var element = document.querySelector('.ia-splitter-left');
+	// 	if(element) {
+	// 		element.parentNode.removeChild(element);
+	// 	}
+
+	// }`)
+	html, _ := page.HTML()
+
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		log.Fatal(err)
+	}
+	doc.Find("div.page-metadata").Remove()
+	doc.Find("div.cell.aside").Remove()
+	doc.Find("#likes-and-labels-container").Remove()
+	doc.Find("#comments-section").Remove()
+	// page.MustElement("img").MustResource()
+	host := "https://goframe.org"
+	// pageDir := path.Dir(filePath)
+
+	doc.Find("#content").Find("img").Each(func(i int, s *goquery.Selection) {
+		src, _ := s.Attr("src")
+		resBaseName := strings.Split(filepath.Base(src), "?")[0]
+		// // 保存资源文件
+		// res, err := page.GetResource(host + src)
+		// if err != nil {
+		// 	fmt.Println("GetResource", err)
+		// }
+		// resPath := path.Join(pageDir, resBaseName)
+		// // fmt.Println("resPath", resPath)
+		// gfile.PutBytes(resPath, res)
+
+		// // 替换src
+		// s.SetAttr("src", resBaseName)
+		s.SetAttr("src", host+src)
+		fmt.Println("src change", resBaseName)
+	})
+	html, _ = doc.Find("#content").Html()
+	// fmt.Println(content)
+	// fmt.Println(html)
+	converter := md.NewConverter("", true, nil)
+	// converter.Use(func(c *md.Converter) []md.Rule {
+	// 	// character := "```"
+	// 	return []md.Rule{
+	// 		{
+	// 			Filter: []string{"disssv"},
+	// 			Replacement: func(content string, selec *goquery.Selection, opt *md.Options) *string {
+	// 				fmt.Println("ac:structured-macro", content)
+
+	// 				// for _, node := range selec.Nodes {
+	// 				// // 	if node.Data == "ac:structured-macro" {
+	// 				// // 		// node's last child -> <ac:plain-text-body>. We don't want to filter on that
+	// 				// // 		// because we would end up with structured-macro around us.
+	// 				// // 		// ac:plain-text-body's last child is [CDATA which has the actual content we are looking for.
+	// 				// // 		data := strings.TrimPrefix(node.LastChild.LastChild.Data, "[CDATA[")
+	// 				// // 		data = strings.TrimSuffix(data, "]]")
+	// 				// // 		// content, if set, will contain the language that has been set in the field.
+	// 				// // 		var language string
+	// 				// // 		if content != "" {
+	// 				// // 			language = content
+	// 				// // 		}
+	// 				// // 		formatted := fmt.Sprintf("%s%s\n%s\n%s", character, language, data, character)
+	// 				// // 		return md.String(formatted)
+	// 				// // 	}
+	// 				// }
+	// 				return md.String(content)
+	// 			},
+	// 		},
+	// 	}
+	// })
+	// converter.Use(plugin.ConfluenceCodeBlock())
+	// converter.Use(plugin.ConfluenceAttachments())
+	markdown, err := converter.ConvertString(html)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// fmt.Println("md ->", markdown)
+
+	gfile.PutContents(filePath, markdown)
 	return nil
 }
 

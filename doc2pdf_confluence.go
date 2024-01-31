@@ -2,7 +2,7 @@ package doc2pdf
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"path"
 	"sync"
@@ -77,6 +77,7 @@ func DownloadGoFrameLatest() {
 // author: hailaz
 func DownloadConfluence(mainURL string, outputDir string) {
 	doc := NewDocDownload(mainURL, outputDir)
+	doc.PageToMD = PageToMD
 
 	doc.GetBrowser().DefaultDevice(devices.Device{
 		AcceptLanguage: "zh-CN",
@@ -146,6 +147,7 @@ func DownloadConfluence(mainURL string, outputDir string) {
 	}
 	doc.MenuRootSelector = "ul.plugin_pagetree_children_list.plugin_pagetree_children_list_noleftspace ul"
 	doc.ParseMenu = ParseConfluenceMenu
+	doc.IsDownloadMain = true
 	doc.Start()
 	// 复制文件到其它目录
 	log.Println(doc.Move("./dist"))
@@ -162,7 +164,7 @@ func PageToPDFWithCfg(page *rod.Page, filePath string, req *proto.PagePrintToPDF
 		log.Printf("PDF[err]: %s", err)
 		return err
 	}
-	bin, err := ioutil.ReadAll(r)
+	bin, err := io.ReadAll(r)
 	if err != nil {
 		log.Printf("ReadAll[err]: %s", err)
 		return err
@@ -176,6 +178,7 @@ func PageToPDFWithCfg(page *rod.Page, filePath string, req *proto.PagePrintToPDF
 //
 // author: hailaz
 func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath string, bms *[]pdfcpu.Bookmark) {
+
 	index := 0
 	// 循环当前节点的li
 	for li, err := root.Element("li"); err == nil; li, err = li.Next() {
@@ -196,7 +199,13 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 		if err != nil {
 			continue
 		}
-		// fmt.Printf("title: %s\n", text)
+		fmt.Printf("title: %s\n", text)
+		// if index >= 1 {
+		// 	break
+		// }
+		// if len(*bms) >= 5 {
+		// 	return
+		// }
 
 		*bms = append(*bms, pdfcpu.Bookmark{
 			Title:    text,
@@ -224,9 +233,12 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 
 		}
 		if a, err := li.Element("div.plugin_pagetree_childtoggle_container a"); err == nil {
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(800 * time.Millisecond)
 			if err := a.Click(proto.InputMouseButtonLeft, 1); err == nil {
 				time.Sleep(200 * time.Millisecond)
+
+				fileNameMD := fmt.Sprintf("%d-%s/%d-%s.md", index, text, index, text)
+				doc.SaveMD(path.Join(dirPath, fileNameMD), doc.baseURL+*href, 1)
 				// 如果当前节点有子节点
 				count := 1
 				for {
@@ -253,6 +265,9 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 
 			}
 
+		} else {
+			fileNameMD := fmt.Sprintf("%d-%s.md", index, text)
+			doc.SaveMD(path.Join(dirPath, fileNameMD), doc.baseURL+*href, 0)
 		}
 		index++
 	}
