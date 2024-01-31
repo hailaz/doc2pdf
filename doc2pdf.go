@@ -6,37 +6,48 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"path/filepath"
 	"strings"
 	"time"
 
-	md "github.com/JohannesKaufmann/html-to-markdown"
-	"github.com/PuerkitoBio/goquery"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
-	"github.com/gogf/gf/v2/os/gfile"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 )
 
+const (
+	// DocDownloadModePDF pdf模式
+	DocDownloadModePDF = "pdf"
+	// DocDownloadModeMD markdown模式
+	DocDownloadModeMD = "md"
+)
+
 // DocDownload description
 type DocDownload struct {
-	MainURL          string // 文档入口地址
-	OutputDir        string // 输出目录
-	MergePDFNums     int    // 每次合并的pdf数量，多文档时能减轻内存压力
-	TempSuffix       string // 临时文件后缀
-	IsDownloadMain   bool
-	fileList         []string
-	bookmark         []pdfcpu.Bookmark
-	pageFrom         int
-	baseURL          string
-	browser          *rod.Browser
-	OpDelay          time.Duration
-	SavePDFBefore    func(page *rod.Page)
-	PageToPDF        func(page *rod.Page, filePath string) error
-	PageToMD         func(page *rod.Page, filePath string) error
+	MainURL        string // 文档入口地址
+	OutputDir      string // 输出目录
+	MergePDFNums   int    // 每次合并的pdf数量，多文档时能减轻内存压力
+	TempSuffix     string // 临时文件后缀
+	IsDownloadMain bool
+
+	pageFrom int
+	baseURL  string
+	browser  *rod.Browser
+	OpDelay  time.Duration
+
+	Mode string // 下载模式: pdf,md
+
+	// for pdf
+	fileList      []string
+	bookmark      []pdfcpu.Bookmark
+	SavePDFBefore func(page *rod.Page)
+	PageToPDF     func(page *rod.Page, filePath string) error
+	// for markdown
+	PageToMD func(page *rod.Page, filePath string) error
+
+	// menu
 	MenuRootSelector string
-	ParseMenu        func(doc *DocDownload, root *rod.Element, level int, dirPath string, bms *[]pdfcpu.Bookmark)
+	ParseMenu        func(doc *DocDownload, root *rod.Element, level int, dirPath string, bms *[]pdfcpu.Bookmark) // 解析菜单
 }
 
 // NewDocDownload description
@@ -76,6 +87,7 @@ func NewDocDownload(mainURL, outputDir string) *DocDownload {
 		baseURL:        baseURL,
 		OpDelay:        200 * time.Millisecond,
 		PageToPDF:      PageToPDF,
+		Mode:           DocDownloadModePDF,
 	}
 }
 
@@ -97,16 +109,19 @@ func (doc *DocDownload) Start() {
 		doc.ParseMenu(doc, root, 0, doc.OutputDir, &doc.bookmark)
 	}
 
-	log.Println("判断是否合并文件")
-	if len(doc.fileList) > 0 {
-		doc.MrPDF()
-	}
+	if doc.Mode == DocDownloadModePDF {
+		log.Println("判断是否合并文件")
+		if len(doc.fileList) > 0 {
+			doc.MrPDF()
+		}
 
-	log.Println("判断是否有书签数据")
-	if len(doc.bookmark) > 0 {
-		doc.AddBookmarks()
+		log.Println("判断是否有书签数据")
+		if len(doc.bookmark) > 0 {
+			doc.AddBookmarks()
+		}
 	}
-	doc.browser.Close()
+	// 关闭浏览器
+	doc.Close()
 }
 
 // GetBrowser 返回浏览器对象
@@ -116,6 +131,16 @@ func (doc *DocDownload) Start() {
 // author: hailaz
 func (doc *DocDownload) GetBrowser() *rod.Browser {
 	return doc.browser
+}
+
+// Close 关闭
+//
+// createTime: 2023-07-28 14:23:07
+//
+// author: hailaz
+func (doc *DocDownload) Close() error {
+	doc.browser.Close()
+	return nil
 }
 
 // Show description
@@ -209,7 +234,13 @@ func (doc *DocDownload) Index(bms *[]pdfcpu.Bookmark) {
 
 	doc.SavePDF(path.Join(dirPath, fileName), doc.MainURL)
 	fileNameMD := fmt.Sprintf("%s.md", text)
-	doc.SaveMD(path.Join(dirPath, fileNameMD), doc.MainURL, 0)
+	filePath := path.Join(dirPath, fileNameMD)
+	filePath = strings.ReplaceAll(filePath, "(🔥重点🔥)", "")
+	filePath = strings.ReplaceAll(filePath, "🔥", "")
+	filePath = strings.ReplaceAll(filePath, "(", "-")
+	filePath = strings.ReplaceAll(filePath, ")", "")
+	filePath = strings.Replace(filePath, dirPath, dirPath+"-md", 1)
+	doc.SaveMD(filePath, doc.MainURL)
 
 	page, _ := api.PageCountFile(path.Join(dirPath, fileName))
 	doc.pageFrom = doc.pageFrom + page
@@ -221,6 +252,9 @@ func (doc *DocDownload) Index(bms *[]pdfcpu.Bookmark) {
 //
 // author: hailaz
 func (doc *DocDownload) SavePDF(filePath string, pageUrl string) error {
+	if doc.PageToPDF == nil {
+		return nil
+	}
 	dir := path.Dir(filePath)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		fmt.Println("创建目录", dir)
@@ -232,10 +266,9 @@ func (doc *DocDownload) SavePDF(filePath string, pageUrl string) error {
 		if doc.SavePDFBefore != nil {
 			doc.SavePDFBefore(page)
 		}
-		if doc.PageToPDF != nil {
-			if err := doc.PageToPDF(page, filePath); err != nil {
-				return err
-			}
+
+		if err := doc.PageToPDF(page, filePath); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -246,17 +279,10 @@ func (doc *DocDownload) SavePDF(filePath string, pageUrl string) error {
 // createTime: 2023-07-11 16:51:31
 //
 // author: hailaz
-func (doc *DocDownload) SaveMD(filePath string, pageUrl string, plen int) error {
-	filePath = strings.ReplaceAll(filePath, "(🔥重点🔥)", "")
-	filePath = strings.ReplaceAll(filePath, "🔥", "")
-	filePath = strings.ReplaceAll(filePath, "(", "-")
-	filePath = strings.ReplaceAll(filePath, ")", "")
-	filePath = strings.Replace(filePath, doc.OutputDir, doc.OutputDir+"-md", 1)
-	// markdown
-	fmt.Println("filePath", filePath, doc.OutputDir, plen)
-	// if plen==1{
-	// 	filePath=filePath
-	// }
+func (doc *DocDownload) SaveMD(filePath string, pageUrl string) error {
+	if doc.PageToMD == nil {
+		return nil
+	}
 	dir := path.Dir(filePath)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		fmt.Println("创建目录", dir)
@@ -271,10 +297,9 @@ func (doc *DocDownload) SaveMD(filePath string, pageUrl string, plen int) error 
 			fmt.Println("创建目录", dir)
 			os.MkdirAll(dir, os.ModePerm)
 		}
-		if doc.PageToMD != nil {
-			if err := doc.PageToMD(page, filePath); err != nil {
-				return err
-			}
+
+		if err := doc.PageToMD(page, filePath); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -287,98 +312,6 @@ func (doc *DocDownload) SaveMD(filePath string, pageUrl string, plen int) error 
 // author: hailaz
 func PageToPDF(page *rod.Page, filePath string) error {
 	page.MustPDF(filePath)
-	return nil
-}
-
-// PageToMD description
-//
-// createTime: 2023-07-28 16:45:39
-//
-// author: hailaz
-func PageToMD(page *rod.Page, filePath string) error {
-	// page.GetResource()
-
-	// page.MustEval(`() => {
-	// 	// 移除菜单
-	// 	var element = document.querySelector('.ia-splitter-left');
-	// 	if(element) {
-	// 		element.parentNode.removeChild(element);
-	// 	}
-
-	// }`)
-	html, _ := page.HTML()
-
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
-	if err != nil {
-		log.Fatal(err)
-	}
-	doc.Find("div.page-metadata").Remove()
-	doc.Find("div.cell.aside").Remove()
-	doc.Find("#likes-and-labels-container").Remove()
-	doc.Find("#comments-section").Remove()
-	// page.MustElement("img").MustResource()
-	host := "https://goframe.org"
-	// pageDir := path.Dir(filePath)
-
-	doc.Find("#content").Find("img").Each(func(i int, s *goquery.Selection) {
-		src, _ := s.Attr("src")
-		resBaseName := strings.Split(filepath.Base(src), "?")[0]
-		// // 保存资源文件
-		// res, err := page.GetResource(host + src)
-		// if err != nil {
-		// 	fmt.Println("GetResource", err)
-		// }
-		// resPath := path.Join(pageDir, resBaseName)
-		// // fmt.Println("resPath", resPath)
-		// gfile.PutBytes(resPath, res)
-
-		// // 替换src
-		// s.SetAttr("src", resBaseName)
-		s.SetAttr("src", host+src)
-		fmt.Println("src change", resBaseName)
-	})
-	html, _ = doc.Find("#content").Html()
-	// fmt.Println(content)
-	// fmt.Println(html)
-	converter := md.NewConverter("", true, nil)
-	// converter.Use(func(c *md.Converter) []md.Rule {
-	// 	// character := "```"
-	// 	return []md.Rule{
-	// 		{
-	// 			Filter: []string{"disssv"},
-	// 			Replacement: func(content string, selec *goquery.Selection, opt *md.Options) *string {
-	// 				fmt.Println("ac:structured-macro", content)
-
-	// 				// for _, node := range selec.Nodes {
-	// 				// // 	if node.Data == "ac:structured-macro" {
-	// 				// // 		// node's last child -> <ac:plain-text-body>. We don't want to filter on that
-	// 				// // 		// because we would end up with structured-macro around us.
-	// 				// // 		// ac:plain-text-body's last child is [CDATA which has the actual content we are looking for.
-	// 				// // 		data := strings.TrimPrefix(node.LastChild.LastChild.Data, "[CDATA[")
-	// 				// // 		data = strings.TrimSuffix(data, "]]")
-	// 				// // 		// content, if set, will contain the language that has been set in the field.
-	// 				// // 		var language string
-	// 				// // 		if content != "" {
-	// 				// // 			language = content
-	// 				// // 		}
-	// 				// // 		formatted := fmt.Sprintf("%s%s\n%s\n%s", character, language, data, character)
-	// 				// // 		return md.String(formatted)
-	// 				// // 	}
-	// 				// }
-	// 				return md.String(content)
-	// 			},
-	// 		},
-	// 	}
-	// })
-	// converter.Use(plugin.ConfluenceCodeBlock())
-	// converter.Use(plugin.ConfluenceAttachments())
-	markdown, err := converter.ConvertString(html)
-	if err != nil {
-		log.Fatal(err)
-	}
-	// fmt.Println("md ->", markdown)
-
-	gfile.PutContents(filePath, markdown)
 	return nil
 }
 

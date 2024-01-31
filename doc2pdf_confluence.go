@@ -5,13 +5,18 @@ import (
 	"io"
 	"log"
 	"path"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
+	md "github.com/JohannesKaufmann/html-to-markdown"
+	"github.com/PuerkitoBio/goquery"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/devices"
 	"github.com/go-rod/rod/lib/proto"
 	"github.com/go-rod/rod/lib/utils"
+	"github.com/gogf/gf/v2/os/gfile"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 )
@@ -178,7 +183,6 @@ func PageToPDFWithCfg(page *rod.Page, filePath string, req *proto.PagePrintToPDF
 //
 // author: hailaz
 func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath string, bms *[]pdfcpu.Bookmark) {
-
 	index := 0
 	// 循环当前节点的li
 	for li, err := root.Element("li"); err == nil; li, err = li.Next() {
@@ -199,46 +203,37 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 		if err != nil {
 			continue
 		}
-		fmt.Printf("title: %s\n", text)
+		log.Printf("title: %s\n", text)
 		// if index >= 1 {
 		// 	break
 		// }
 		// if len(*bms) >= 5 {
 		// 	return
 		// }
+		// 拼接完整的url
+		pageURL := doc.baseURL + *href
+		if doc.Mode == DocDownloadModePDF {
 
-		*bms = append(*bms, pdfcpu.Bookmark{
-			Title:    text,
-			PageFrom: doc.pageFrom,
-		})
-
-		{
-			// 拼接完整的url
-			url := doc.baseURL + *href
-			// 打印当前节点的层级和url
-
-			// 打印当前节点的文本
-			// fmt.Println(text)
-
-			// fmt.Printf("%s[%s](%s)\n", strings.Repeat("--", level), text, url)
+			// 保存书签
+			*bms = append(*bms, pdfcpu.Bookmark{
+				Title:    text,
+				PageFrom: doc.pageFrom,
+			})
 			// 保存pdf
 			fileName := fmt.Sprintf("%d-%s.pdf", index, text)
 			doc.fileList = append(doc.fileList, path.Join(dirPath, fileName))
-			doc.SavePDF(path.Join(dirPath, fileName), url)
+			doc.SavePDF(path.Join(dirPath, fileName), pageURL)
 
 			page, _ := api.PageCountFile(path.Join(dirPath, fileName))
 			doc.pageFrom = doc.pageFrom + page
 
 			log.Printf("文档累计页数%d，当前文件页数%d： %s\n", doc.pageFrom, page, path.Join(dirPath, fileName))
-
 		}
+
 		if a, err := li.Element("div.plugin_pagetree_childtoggle_container a"); err == nil {
-			time.Sleep(800 * time.Millisecond)
+			time.Sleep(500 * time.Millisecond)
 			if err := a.Click(proto.InputMouseButtonLeft, 1); err == nil {
 				time.Sleep(200 * time.Millisecond)
-
-				fileNameMD := fmt.Sprintf("%d-%s/%d-%s.md", index, text, index, text)
-				doc.SaveMD(path.Join(dirPath, fileNameMD), doc.baseURL+*href, 1)
 				// 如果当前节点有子节点
 				count := 1
 				for {
@@ -264,12 +259,119 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 				}
 
 			}
+			fileNameMD := fmt.Sprintf("%d-%s/%d-%s.md", index, text, index, text)
 
+			doc.SaveMD(ReplacePath(path.Join(dirPath, fileNameMD), doc.OutputDir), pageURL)
 		} else {
 			fileNameMD := fmt.Sprintf("%d-%s.md", index, text)
-			doc.SaveMD(path.Join(dirPath, fileNameMD), doc.baseURL+*href, 0)
+			doc.SaveMD(ReplacePath(path.Join(dirPath, fileNameMD), doc.OutputDir), pageURL)
 		}
 		index++
 	}
 
+}
+
+// ReplacePath description
+//
+// createTime: 2024-01-31 18:48:10
+func ReplacePath(filePath string, outPath string) string {
+	filePath = strings.ReplaceAll(filePath, "(🔥重点🔥)", "")
+	filePath = strings.ReplaceAll(filePath, "🔥", "")
+	filePath = strings.ReplaceAll(filePath, "(", "-")
+	filePath = strings.ReplaceAll(filePath, ")", "")
+	filePath = strings.Replace(filePath, outPath, outPath+"-md", 1)
+	return filePath
+}
+
+// PageToMD description
+//
+// createTime: 2023-07-28 16:45:39
+//
+// author: hailaz
+func PageToMD(page *rod.Page, filePath string) error {
+
+	// page.GetResource()
+
+	// page.MustEval(`() => {
+	// 	// 移除菜单
+	// 	var element = document.querySelector('.ia-splitter-left');
+	// 	if(element) {
+	// 		element.parentNode.removeChild(element);
+	// 	}
+
+	// }`)
+	html, _ := page.HTML()
+
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		log.Fatal(err)
+	}
+	doc.Find("div.page-metadata").Remove()
+	doc.Find("div.cell.aside").Remove()
+	doc.Find("#likes-and-labels-container").Remove()
+	doc.Find("#comments-section").Remove()
+	// page.MustElement("img").MustResource()
+	host := "https://goframe.org"
+	// pageDir := path.Dir(filePath)
+
+	doc.Find("#content").Find("img").Each(func(i int, s *goquery.Selection) {
+		src, _ := s.Attr("src")
+		resBaseName := strings.Split(filepath.Base(src), "?")[0]
+		// // 保存资源文件
+		// res, err := page.GetResource(host + src)
+		// if err != nil {
+		// 	fmt.Println("GetResource", err)
+		// }
+		// resPath := path.Join(pageDir, resBaseName)
+		// // fmt.Println("resPath", resPath)
+		// gfile.PutBytes(resPath, res)
+
+		// // 替换src
+		// s.SetAttr("src", resBaseName)
+		s.SetAttr("src", host+src)
+		fmt.Println("src change", resBaseName)
+	})
+	html, _ = doc.Find("#content").Html()
+	// fmt.Println(content)
+	// fmt.Println(html)
+	converter := md.NewConverter("", true, nil)
+	// converter.Use(func(c *md.Converter) []md.Rule {
+	// 	// character := "```"
+	// 	return []md.Rule{
+	// 		{
+	// 			Filter: []string{"disssv"},
+	// 			Replacement: func(content string, selec *goquery.Selection, opt *md.Options) *string {
+	// 				fmt.Println("ac:structured-macro", content)
+
+	// 				// for _, node := range selec.Nodes {
+	// 				// // 	if node.Data == "ac:structured-macro" {
+	// 				// // 		// node's last child -> <ac:plain-text-body>. We don't want to filter on that
+	// 				// // 		// because we would end up with structured-macro around us.
+	// 				// // 		// ac:plain-text-body's last child is [CDATA which has the actual content we are looking for.
+	// 				// // 		data := strings.TrimPrefix(node.LastChild.LastChild.Data, "[CDATA[")
+	// 				// // 		data = strings.TrimSuffix(data, "]]")
+	// 				// // 		// content, if set, will contain the language that has been set in the field.
+	// 				// // 		var language string
+	// 				// // 		if content != "" {
+	// 				// // 			language = content
+	// 				// // 		}
+	// 				// // 		formatted := fmt.Sprintf("%s%s\n%s\n%s", character, language, data, character)
+	// 				// // 		return md.String(formatted)
+	// 				// // 	}
+	// 				// }
+	// 				return md.String(content)
+	// 			},
+	// 		},
+	// 	}
+	// })
+	// converter.Use(plugin.ConfluenceCodeBlock())
+	// converter.Use(plugin.ConfluenceAttachments())
+	markdown, err := converter.ConvertString(html)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// fmt.Println("md ->", markdown)
+
+	gfile.PutContents(filePath, markdown)
+	return nil
 }
