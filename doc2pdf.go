@@ -43,7 +43,7 @@ type DocDownload struct {
 	SavePDFBefore func(page *rod.Page)
 	PageToPDF     func(page *rod.Page, filePath string) error
 	// for markdown
-	PageToMD func(page *rod.Page, filePath string) error
+	PageToMD func(doc *DocDownload, page *rod.Page, filePath string) error
 
 	// menu
 	MenuRootSelector string
@@ -102,14 +102,21 @@ func (doc *DocDownload) Start() {
 	if doc.IsDownloadMain {
 		doc.Index(&doc.bookmark)
 	}
-
-	if doc.ParseMenu != nil {
-		log.Println("菜单解析")
-		root := doc.GetMenuRoot(doc.MenuRootSelector)
-		doc.ParseMenu(doc, root, 0, doc.OutputDir, &doc.bookmark)
+	if doc.Mode == DocDownloadModeMD {
+		if doc.ParseMenu != nil {
+			log.Println("菜单解析")
+			root := doc.GetMenuRoot(doc.MenuRootSelector)
+			doc.ParseMenu(doc, root, 0, doc.OutputDir, nil)
+		}
 	}
 
 	if doc.Mode == DocDownloadModePDF {
+		if doc.ParseMenu != nil {
+			log.Println("菜单解析")
+			root := doc.GetMenuRoot(doc.MenuRootSelector)
+			doc.ParseMenu(doc, root, 0, doc.OutputDir, &doc.bookmark)
+		}
+
 		log.Println("判断是否合并文件")
 		if len(doc.fileList) > 0 {
 			doc.MrPDF()
@@ -298,7 +305,7 @@ func (doc *DocDownload) SaveMD(filePath string, pageUrl string) error {
 			os.MkdirAll(dir, os.ModePerm)
 		}
 
-		if err := doc.PageToMD(page, filePath); err != nil {
+		if err := doc.PageToMD(doc, page, filePath); err != nil {
 			return err
 		}
 	}

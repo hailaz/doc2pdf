@@ -83,6 +83,7 @@ func DownloadGoFrameLatest() {
 func DownloadConfluence(mainURL string, outputDir string) {
 	doc := NewDocDownload(mainURL, outputDir)
 	doc.PageToMD = PageToMD
+	doc.Mode = DocDownloadModeMD
 
 	doc.GetBrowser().DefaultDevice(devices.Device{
 		AcceptLanguage: "zh-CN",
@@ -229,9 +230,9 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 
 			log.Printf("文档累计页数%d，当前文件页数%d： %s\n", doc.pageFrom, page, path.Join(dirPath, fileName))
 		}
-
+		fileNameMD := ""
 		if a, err := li.Element("div.plugin_pagetree_childtoggle_container a"); err == nil {
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(300 * time.Millisecond)
 			if err := a.Click(proto.InputMouseButtonLeft, 1); err == nil {
 				time.Sleep(200 * time.Millisecond)
 				// 如果当前节点有子节点
@@ -242,8 +243,12 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 						// log.Printf("[子菜单]: %s", ul.MustText())
 						// 递归子节点
 						dirName := fmt.Sprintf("%d-%s", index, text)
-						(*bms)[index].Children = make([]pdfcpu.Bookmark, 0)
-						doc.ParseMenu(doc, ul, level+1, path.Join(dirPath, dirName), &((*bms)[index].Children))
+						if bms != nil {
+							(*bms)[index].Children = make([]pdfcpu.Bookmark, 0)
+							doc.ParseMenu(doc, ul, level+1, path.Join(dirPath, dirName), &((*bms)[index].Children))
+						} else {
+							doc.ParseMenu(doc, ul, level+1, path.Join(dirPath, dirName), nil)
+						}
 						// index++
 						log.Printf("在第%d次找到子节点\n", count)
 						break
@@ -259,13 +264,13 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 				}
 
 			}
-			fileNameMD := fmt.Sprintf("%d-%s/%d-%s.md", index, text, index, text)
-
-			doc.SaveMD(ReplacePath(path.Join(dirPath, fileNameMD), doc.OutputDir), pageURL)
+			fileNameMD = fmt.Sprintf("%d-%s/%d-%s.md", index, text, index, text)
 		} else {
-			fileNameMD := fmt.Sprintf("%d-%s.md", index, text)
-			doc.SaveMD(ReplacePath(path.Join(dirPath, fileNameMD), doc.OutputDir), pageURL)
+			fileNameMD = fmt.Sprintf("%d-%s.md", index, text)
 		}
+		doc.SaveMD(ReplacePath(path.Join(dirPath, fileNameMD), doc.OutputDir), pageURL)
+		mapData := fmt.Sprintf("%s=>%s\n", pageURL, ReplacePath(path.Join(dirPath, fileNameMD), doc.OutputDir))
+		gfile.PutContentsAppend(path.Join(doc.OutputDir+"-md-map", "map.txt"), mapData)
 		index++
 	}
 
@@ -288,7 +293,7 @@ func ReplacePath(filePath string, outPath string) string {
 // createTime: 2023-07-28 16:45:39
 //
 // author: hailaz
-func PageToMD(page *rod.Page, filePath string) error {
+func PageToMD(doc *DocDownload, page *rod.Page, filePath string) error {
 
 	// page.GetResource()
 
@@ -302,36 +307,45 @@ func PageToMD(page *rod.Page, filePath string) error {
 	// }`)
 	html, _ := page.HTML()
 
-	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	queryDoc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
 	if err != nil {
 		log.Fatal(err)
 	}
-	doc.Find("div.page-metadata").Remove()
-	doc.Find("div.cell.aside").Remove()
-	doc.Find("#likes-and-labels-container").Remove()
-	doc.Find("#comments-section").Remove()
+	queryDoc.Find("div.page-metadata").Remove()
+	queryDoc.Find("div.cell.aside").Remove()
+	queryDoc.Find("#likes-and-labels-container").Remove()
+	queryDoc.Find("#comments-section").Remove()
 	// page.MustElement("img").MustResource()
 	host := "https://goframe.org"
 	// pageDir := path.Dir(filePath)
+	pageDir := path.Join(doc.OutputDir + "-md-static")
 
-	doc.Find("#content").Find("img").Each(func(i int, s *goquery.Selection) {
+	queryDoc.Find("#content").Find("img").Each(func(i int, s *goquery.Selection) {
 		src, _ := s.Attr("src")
+		log.Println("img src:", src)
+		if strings.HasPrefix(src, "https://") || strings.HasPrefix(src, "http://") {
+			return
+		}
 		resBaseName := strings.Split(filepath.Base(src), "?")[0]
-		// // 保存资源文件
-		// res, err := page.GetResource(host + src)
-		// if err != nil {
-		// 	fmt.Println("GetResource", err)
-		// }
-		// resPath := path.Join(pageDir, resBaseName)
-		// // fmt.Println("resPath", resPath)
-		// gfile.PutBytes(resPath, res)
-
+		// 保存资源文件
+		res, err := page.GetResource(host + src)
+		if err != nil {
+			log.Fatal(err)
+			s.SetAttr("src", host+src)
+		}
+		resPath := path.Join(pageDir, strings.Split(src, "?")[0])
+		// fmt.Println("resPath", resPath)
+		log.Println("save file:", resPath)
+		err = gfile.PutBytes(resPath, res)
+		if err != nil {
+			log.Fatal(err)
+		}
 		// // 替换src
 		// s.SetAttr("src", resBaseName)
-		s.SetAttr("src", host+src)
-		fmt.Println("src change", resBaseName)
+		// s.SetAttr("src", host+src)
+		log.Println("src change", resBaseName)
 	})
-	html, _ = doc.Find("#content").Html()
+	html, _ = queryDoc.Find("#content").Html()
 	// fmt.Println(content)
 	// fmt.Println(html)
 	converter := md.NewConverter("", true, nil)
