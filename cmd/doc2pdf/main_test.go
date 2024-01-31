@@ -86,7 +86,7 @@ func TestSavePdf(t *testing.T) {
 	var b *rod.Browser
 	if binPath, exists := launcher.LookPath(); exists {
 		t.Log(binPath)
-		u := launcher.New().Bin(binPath).MustLaunch()
+		u := launcher.New().Leakless(false).Bin(binPath).MustLaunch()
 		b = rod.New().ControlURL(u).MustConnect()
 
 	} else {

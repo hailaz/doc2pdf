@@ -42,7 +42,7 @@ func NewDocDownload(mainURL, outputDir string) *DocDownload {
 	var browser *rod.Browser
 	if binPath, exists := launcher.LookPath(); exists {
 		log.Println("找到浏览器", binPath)
-		u := launcher.New().Bin(binPath).MustLaunch()
+		u := launcher.New().Leakless(false).Bin(binPath).MustLaunch()
 		browser = rod.New().ControlURL(u).MustConnect()
 	} else {
 		// 如果没有找到浏览器，就使用默认的浏览器
@@ -100,7 +100,7 @@ func (doc *DocDownload) Start() {
 	if len(doc.bookmark) > 0 {
 		doc.AddBookmarks()
 	}
-
+	doc.browser.Close()
 }
 
 // GetBrowser 返回浏览器对象
