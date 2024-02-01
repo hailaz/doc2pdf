@@ -5,12 +5,13 @@ import (
 	"io"
 	"log"
 	"path"
-	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
 
 	md "github.com/JohannesKaufmann/html-to-markdown"
+	"github.com/JohannesKaufmann/html-to-markdown/plugin"
 	"github.com/PuerkitoBio/goquery"
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/devices"
@@ -33,6 +34,7 @@ var (
 		"v2.4":   "https://goframe.org/pages/viewpage.action?pageId=96885694",
 		"latest": "https://goframe.org/display/gf",
 	}
+	mapData = make(map[string]string)
 )
 
 // DownloadGoFrameAll description
@@ -46,7 +48,7 @@ func DownloadGoFrameAll() {
 		ver, main := ver, main
 		wg.Add(1)
 		func() {
-			DownloadConfluence(main, "./output/goframe-"+ver)
+			DownloadConfluence(main, "./output/goframe-"+ver, DocDownloadModePDF)
 			wg.Done()
 		}()
 	}
@@ -60,7 +62,7 @@ func DownloadGoFrameAll() {
 // author: hailaz
 func DownloadGoFrameWithVersion(version string) {
 	if main, ok := versionList[version]; ok {
-		DownloadConfluence(main, "./output/goframe-"+version)
+		DownloadConfluence(main, "./output/goframe-"+version, DocDownloadModePDF)
 	} else {
 		log.Printf("版本号不存在")
 	}
@@ -72,7 +74,7 @@ func DownloadGoFrameWithVersion(version string) {
 //
 // author: hailaz
 func DownloadGoFrameLatest() {
-	DownloadConfluence("https://goframe.org/display/gf", "./output/goframe-latest")
+	DownloadConfluence("https://goframe.org/display/gf", "./output/goframe-latest", DocDownloadModePDF)
 }
 
 // DownloadConfluence 下载confluence文档
@@ -80,10 +82,10 @@ func DownloadGoFrameLatest() {
 // createTime: 2023-07-27 15:26:56
 //
 // author: hailaz
-func DownloadConfluence(mainURL string, outputDir string) {
+func DownloadConfluence(mainURL string, outputDir string, mode string) {
 	doc := NewDocDownload(mainURL, outputDir)
 	doc.PageToMD = PageToMD
-	doc.Mode = DocDownloadModeMD
+	doc.Mode = mode
 
 	doc.GetBrowser().DefaultDevice(devices.Device{
 		AcceptLanguage: "zh-CN",
@@ -157,6 +159,41 @@ func DownloadConfluence(mainURL string, outputDir string) {
 	doc.Start()
 	// 复制文件到其它目录
 	log.Println(doc.Move("./dist"))
+	if doc.Mode == DocDownloadModeMD {
+		// 地址转换
+		files, err := gfile.ScanDir(doc.OutputDir+"-md", "*.md", true)
+		if err != nil {
+			log.Fatal(err)
+		}
+		regx := regexp.MustCompile(`/pages/viewpage.action\?pageId=\d+|/display/gf/.*\)`)
+		for _, file := range files {
+			contents := gfile.GetContents(file)
+			urlList := regx.FindAllString(contents, -1)
+			for _, u := range urlList {
+				u = strings.TrimSuffix(u, ")")
+				// t.Log(u)
+				// t.Log(mapData[u])
+				if newURL, ok := mapData[u]; ok {
+					contents = strings.ReplaceAll(contents, u, newURL)
+				} else {
+					log.Println("not found")
+					contents = strings.ReplaceAll(contents, u, doc.baseURL+u)
+				}
+			}
+			contents = strings.ReplaceAll(contents, "；]", "]")
+			contents = strings.ReplaceAll(contents, "；)", ")")
+			contents = strings.ReplaceAll(contents, "- ```", "```")
+			contents = strings.ReplaceAll(contents, "git.w", "woahailaz")
+			contents = strings.ReplaceAll(contents, "woahailazoa.com", "github.com")
+			contents = strings.ReplaceAll(contents, "git.code.o", "gitcodeohailaz")
+			contents = strings.ReplaceAll(contents, "gitcodeohailaza.com", "github.com")
+
+			err := gfile.PutContents(file, contents)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+	}
 }
 
 // PageToPDFWithCfg description
@@ -269,11 +306,27 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 			fileNameMD = fmt.Sprintf("%d-%s.md", index, text)
 		}
 		doc.SaveMD(ReplacePath(path.Join(dirPath, fileNameMD), doc.OutputDir), pageURL)
-		mapData := fmt.Sprintf("%s=>%s\n", pageURL, ReplacePath(path.Join(dirPath, fileNameMD), doc.OutputDir))
-		gfile.PutContentsAppend(path.Join(doc.OutputDir+"-md-map", "map.txt"), mapData)
+		SaveMap(pageURL, ReplacePath(path.Join(dirPath, fileNameMD), doc.OutputDir))
+		// mapData := fmt.Sprintf("%s=>%s\n", pageURL, ReplacePath(path.Join(dirPath, fileNameMD), doc.OutputDir))
+		// gfile.PutContentsAppend(path.Join(doc.OutputDir+"-md-map", "map.txt"), mapData)
 		index++
 	}
 
+}
+
+// SaveMap description
+//
+// createTime: 2024-02-01 10:07:46
+func SaveMap(pageURL string, filePath string) {
+	pageURL = strings.ReplaceAll(pageURL, "https://goframe.org", "")
+	pageURL = strings.ReplaceAll(pageURL, "&src=contextnavpagetreemode", "")
+	pageURL = strings.ReplaceAll(pageURL, "?src=contextnavpagetreemode", "")
+	filePath = strings.ReplaceAll(filePath, "output/goframe-latest-md", "/docs")
+	// 编写正则表达式
+	regex := regexp.MustCompile(`/\d+-`)
+	filePath = regex.ReplaceAllString(filePath, "/")
+	filePath = strings.TrimSuffix(filePath, ".md")
+	mapData[pageURL] = filePath
 }
 
 // ReplacePath description
@@ -316,17 +369,17 @@ func PageToMD(doc *DocDownload, page *rod.Page, filePath string) error {
 	queryDoc.Find("#likes-and-labels-container").Remove()
 	queryDoc.Find("#comments-section").Remove()
 	// page.MustElement("img").MustResource()
-	host := "https://goframe.org"
+	host := doc.baseURL
 	// pageDir := path.Dir(filePath)
 	pageDir := path.Join(doc.OutputDir + "-md-static")
 
 	queryDoc.Find("#content").Find("img").Each(func(i int, s *goquery.Selection) {
 		src, _ := s.Attr("src")
-		log.Println("img src:", src)
+		// log.Println("img src:", src)
 		if strings.HasPrefix(src, "https://") || strings.HasPrefix(src, "http://") {
 			return
 		}
-		resBaseName := strings.Split(filepath.Base(src), "?")[0]
+		// resBaseName := strings.Split(filepath.Base(src), "?")[0]
 		// 保存资源文件
 		res, err := page.GetResource(host + src)
 		if err != nil {
@@ -335,7 +388,7 @@ func PageToMD(doc *DocDownload, page *rod.Page, filePath string) error {
 		}
 		resPath := path.Join(pageDir, strings.Split(src, "?")[0])
 		// fmt.Println("resPath", resPath)
-		log.Println("save file:", resPath)
+		// log.Println("save file:", resPath)
 		err = gfile.PutBytes(resPath, res)
 		if err != nil {
 			log.Fatal(err)
@@ -343,49 +396,18 @@ func PageToMD(doc *DocDownload, page *rod.Page, filePath string) error {
 		// // 替换src
 		// s.SetAttr("src", resBaseName)
 		// s.SetAttr("src", host+src)
-		log.Println("src change", resBaseName)
+		// log.Println("src change", resBaseName)
 	})
 	html, _ = queryDoc.Find("#content").Html()
-	// fmt.Println(content)
-	// fmt.Println(html)
 	converter := md.NewConverter("", true, nil)
-	// converter.Use(func(c *md.Converter) []md.Rule {
-	// 	// character := "```"
-	// 	return []md.Rule{
-	// 		{
-	// 			Filter: []string{"disssv"},
-	// 			Replacement: func(content string, selec *goquery.Selection, opt *md.Options) *string {
-	// 				fmt.Println("ac:structured-macro", content)
-
-	// 				// for _, node := range selec.Nodes {
-	// 				// // 	if node.Data == "ac:structured-macro" {
-	// 				// // 		// node's last child -> <ac:plain-text-body>. We don't want to filter on that
-	// 				// // 		// because we would end up with structured-macro around us.
-	// 				// // 		// ac:plain-text-body's last child is [CDATA which has the actual content we are looking for.
-	// 				// // 		data := strings.TrimPrefix(node.LastChild.LastChild.Data, "[CDATA[")
-	// 				// // 		data = strings.TrimSuffix(data, "]]")
-	// 				// // 		// content, if set, will contain the language that has been set in the field.
-	// 				// // 		var language string
-	// 				// // 		if content != "" {
-	// 				// // 			language = content
-	// 				// // 		}
-	// 				// // 		formatted := fmt.Sprintf("%s%s\n%s\n%s", character, language, data, character)
-	// 				// // 		return md.String(formatted)
-	// 				// // 	}
-	// 				// }
-	// 				return md.String(content)
-	// 			},
-	// 		},
-	// 	}
-	// })
 	// converter.Use(plugin.ConfluenceCodeBlock())
 	// converter.Use(plugin.ConfluenceAttachments())
+	converter.Use(plugin.Strikethrough(""))
+	converter.Use(plugin.TableCompat())
 	markdown, err := converter.ConvertString(html)
 	if err != nil {
 		log.Fatal(err)
 	}
-	// fmt.Println("md ->", markdown)
-
 	gfile.PutContents(filePath, markdown)
 	return nil
 }

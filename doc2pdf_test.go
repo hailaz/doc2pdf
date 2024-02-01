@@ -24,6 +24,15 @@ func TestDownloadGoFrameLatest(t *testing.T) {
 	doc2pdf.DownloadGoFrameLatest()
 }
 
+// TestDownloadGoFrameLatestMD description
+//
+// createTime: 2023-07-28 14:46:43
+//
+// author: hailaz
+func TestDownloadGoFrameLatestMD(t *testing.T) {
+	doc2pdf.DownloadConfluence("https://goframe.org/display/gf", "./output/goframe-latest", doc2pdf.DocDownloadModeMD)
+}
+
 // TestDownloadGoFrameAll description
 //
 // createTime: 2023-07-28 15:29:07
