@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"path"
 	"regexp"
 	"strings"
@@ -157,8 +158,11 @@ func DownloadConfluence(mainURL string, outputDir string, mode string) {
 	doc.ParseMenu = ParseConfluenceMenu
 	doc.IsDownloadMain = true
 	doc.Start()
-	// 复制文件到其它目录
-	log.Println(doc.Move("./dist"))
+	if doc.Mode == DocDownloadModePDF {
+		// 复制文件到其它目录
+		log.Println(doc.Move("./dist"))
+	}
+	// 遍历文件，替换链接
 	if doc.Mode == DocDownloadModeMD {
 		// 地址转换
 		files, err := gfile.ScanDir(doc.OutputDir+"-md", "*.md", true)
@@ -237,11 +241,11 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 			continue
 		}
 		// 获取a标签的文本
-		text, err := a.Text()
+		docTitle, err := a.Text()
 		if err != nil {
 			continue
 		}
-		log.Printf("title: %s\n", text)
+		log.Printf("title: %s\n", docTitle)
 		// if index >= 1 {
 		// 	break
 		// }
@@ -254,11 +258,11 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 
 			// 保存书签
 			*bms = append(*bms, pdfcpu.Bookmark{
-				Title:    text,
+				Title:    docTitle,
 				PageFrom: doc.pageFrom,
 			})
 			// 保存pdf
-			fileName := fmt.Sprintf("%d-%s.pdf", index, text)
+			fileName := fmt.Sprintf("%d-%s.pdf", index, docTitle)
 			doc.fileList = append(doc.fileList, path.Join(dirPath, fileName))
 			doc.SavePDF(path.Join(dirPath, fileName), pageURL)
 
@@ -279,7 +283,7 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 					if ul, err := li.Element("div.plugin_pagetree_children_container ul"); err == nil {
 						// log.Printf("[子菜单]: %s", ul.MustText())
 						// 递归子节点
-						dirName := fmt.Sprintf("%d-%s", index, text)
+						dirName := fmt.Sprintf("%d-%s", index, docTitle)
 						if bms != nil {
 							(*bms)[index].Children = make([]pdfcpu.Bookmark, 0)
 							doc.ParseMenu(doc, ul, level+1, path.Join(dirPath, dirName), &((*bms)[index].Children))
@@ -301,12 +305,19 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 				}
 
 			}
-			fileNameMD = fmt.Sprintf("%d-%s/%d-%s.md", index, text, index, text)
+			fileNameMD = fmt.Sprintf("%d-%s/%d-%s.md", index, docTitle, index, docTitle)
 		} else {
-			fileNameMD = fmt.Sprintf("%d-%s.md", index, text)
+			fileNameMD = fmt.Sprintf("%d-%s.md", index, docTitle)
 		}
-		doc.SaveMD(ReplacePath(path.Join(dirPath, fileNameMD), doc.OutputDir), pageURL)
-		SaveMap(pageURL, ReplacePath(path.Join(dirPath, fileNameMD), doc.OutputDir))
+		if doc.Mode == DocDownloadModeMD {
+			filePath := ReplacePath(path.Join(dirPath, fileNameMD), doc.OutputDir)
+			doc.SaveMD(filePath, pageURL)
+			SaveMap(filePath, pageURL)
+			// 加标题
+			contents := gfile.GetContents(filePath)
+			contents = fmt.Sprintf("---\ntitle: %s\n---\n\n", docTitle) + contents
+			gfile.PutContents(filePath, contents)
+		}
 		// mapData := fmt.Sprintf("%s=>%s\n", pageURL, ReplacePath(path.Join(dirPath, fileNameMD), doc.OutputDir))
 		// gfile.PutContentsAppend(path.Join(doc.OutputDir+"-md-map", "map.txt"), mapData)
 		index++
@@ -317,7 +328,7 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 // SaveMap description
 //
 // createTime: 2024-02-01 10:07:46
-func SaveMap(pageURL string, filePath string) {
+func SaveMap(filePath string, pageURL string) {
 	pageURL = strings.ReplaceAll(pageURL, "https://goframe.org", "")
 	pageURL = strings.ReplaceAll(pageURL, "&src=contextnavpagetreemode", "")
 	pageURL = strings.ReplaceAll(pageURL, "?src=contextnavpagetreemode", "")
@@ -346,7 +357,7 @@ func ReplacePath(filePath string, outPath string) string {
 // createTime: 2023-07-28 16:45:39
 //
 // author: hailaz
-func PageToMD(doc *DocDownload, page *rod.Page, filePath string) error {
+func PageToMD(doc *DocDownload, filePath string, pageUrl string) error {
 
 	// page.GetResource()
 
@@ -358,52 +369,66 @@ func PageToMD(doc *DocDownload, page *rod.Page, filePath string) error {
 	// 	}
 
 	// }`)
-	html, _ := page.HTML()
 
-	queryDoc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
-	if err != nil {
-		log.Fatal(err)
+	cacheHtml := strings.ReplaceAll(filePath, doc.OutputDir+"-md", doc.OutputDir+"-html")
+	cacheHtml = strings.TrimSuffix(cacheHtml, ".md") + ".html"
+	html := ""
+
+	if _, err := os.Stat(cacheHtml); os.IsNotExist(err) {
+		// 加个缓存，免得每次都下载
+		page := doc.browser.MustPage(pageUrl).MustWaitLoad()
+		defer page.Close()
+		html, _ := page.HTML()
+
+		queryDoc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+		if err != nil {
+			log.Fatal(err)
+		}
+		queryDoc.Find("div.page-metadata").Remove()
+		queryDoc.Find("div.cell.aside").Remove()
+		queryDoc.Find("#likes-and-labels-container").Remove()
+		queryDoc.Find("#comments-section").Remove()
+		// page.MustElement("img").MustResource()
+		host := doc.baseURL
+		// pageDir := path.Dir(filePath)
+		pageDir := path.Join(doc.OutputDir + "-md-static")
+
+		queryDoc.Find("#main-content").Find("img").Each(func(i int, s *goquery.Selection) {
+			src, _ := s.Attr("src")
+			// log.Println("img src:", src)
+			if strings.HasPrefix(src, "https://") || strings.HasPrefix(src, "http://") {
+				return
+			}
+			// resBaseName := strings.Split(filepath.Base(src), "?")[0]
+			// 保存资源文件
+			res, err := page.GetResource(host + src)
+			if err != nil {
+				log.Fatal(err)
+				s.SetAttr("src", host+src)
+			}
+			resPath := path.Join(pageDir, strings.Split(src, "?")[0])
+			// fmt.Println("resPath", resPath)
+			// log.Println("save file:", resPath)
+			err = gfile.PutBytes(resPath, res)
+			if err != nil {
+				log.Fatal(err)
+			}
+			// // 替换src
+			// s.SetAttr("src", resBaseName)
+			// s.SetAttr("src", host+src)
+			// log.Println("src change", resBaseName)
+		})
+		html, _ = queryDoc.Find("#main-content").Html()
+
+		gfile.PutContents(cacheHtml, html)
+	} else {
+		html = gfile.GetContents(cacheHtml)
 	}
-	queryDoc.Find("div.page-metadata").Remove()
-	queryDoc.Find("div.cell.aside").Remove()
-	queryDoc.Find("#likes-and-labels-container").Remove()
-	queryDoc.Find("#comments-section").Remove()
-	// page.MustElement("img").MustResource()
-	host := doc.baseURL
-	// pageDir := path.Dir(filePath)
-	pageDir := path.Join(doc.OutputDir + "-md-static")
 
-	queryDoc.Find("#content").Find("img").Each(func(i int, s *goquery.Selection) {
-		src, _ := s.Attr("src")
-		// log.Println("img src:", src)
-		if strings.HasPrefix(src, "https://") || strings.HasPrefix(src, "http://") {
-			return
-		}
-		// resBaseName := strings.Split(filepath.Base(src), "?")[0]
-		// 保存资源文件
-		res, err := page.GetResource(host + src)
-		if err != nil {
-			log.Fatal(err)
-			s.SetAttr("src", host+src)
-		}
-		resPath := path.Join(pageDir, strings.Split(src, "?")[0])
-		// fmt.Println("resPath", resPath)
-		// log.Println("save file:", resPath)
-		err = gfile.PutBytes(resPath, res)
-		if err != nil {
-			log.Fatal(err)
-		}
-		// // 替换src
-		// s.SetAttr("src", resBaseName)
-		// s.SetAttr("src", host+src)
-		// log.Println("src change", resBaseName)
-	})
-	html, _ = queryDoc.Find("#content").Html()
 	converter := md.NewConverter("", true, nil)
 	// converter.Use(plugin.ConfluenceCodeBlock())
 	// converter.Use(plugin.ConfluenceAttachments())
 	converter.Use(plugin.Strikethrough(""))
-	converter.Use(plugin.TableCompat())
 	markdown, err := converter.ConvertString(html)
 	if err != nil {
 		log.Fatal(err)

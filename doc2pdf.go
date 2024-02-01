@@ -43,7 +43,7 @@ type DocDownload struct {
 	SavePDFBefore func(page *rod.Page)
 	PageToPDF     func(page *rod.Page, filePath string) error
 	// for markdown
-	PageToMD func(doc *DocDownload, page *rod.Page, filePath string) error
+	PageToMD func(doc *DocDownload, filePath string, pageUrl string) error
 
 	// menu
 	MenuRootSelector string
@@ -231,26 +231,29 @@ func (doc *DocDownload) GetMenuRoot(selector string) *rod.Element {
 func (doc *DocDownload) Index(bms *[]pdfcpu.Bookmark) {
 	dirPath := doc.OutputDir
 	text := "首页"
-	*bms = append(*bms, pdfcpu.Bookmark{
-		Title:    text,
-		PageFrom: doc.pageFrom,
-	})
 
-	fileName := fmt.Sprintf("%s.md", text)
-	doc.fileList = append(doc.fileList, path.Join(dirPath, fileName))
+	if doc.Mode == DocDownloadModePDF {
+		*bms = append(*bms, pdfcpu.Bookmark{
+			Title:    text,
+			PageFrom: doc.pageFrom,
+		})
 
-	doc.SavePDF(path.Join(dirPath, fileName), doc.MainURL)
-	fileNameMD := fmt.Sprintf("%s.md", text)
-	filePath := path.Join(dirPath, fileNameMD)
-	filePath = strings.ReplaceAll(filePath, "(🔥重点🔥)", "")
-	filePath = strings.ReplaceAll(filePath, "🔥", "")
-	filePath = strings.ReplaceAll(filePath, "(", "-")
-	filePath = strings.ReplaceAll(filePath, ")", "")
-	filePath = strings.Replace(filePath, dirPath, dirPath+"-md", 1)
-	doc.SaveMD(filePath, doc.MainURL)
+		fileName := fmt.Sprintf("%s.md", text)
+		doc.fileList = append(doc.fileList, path.Join(dirPath, fileName))
 
-	page, _ := api.PageCountFile(path.Join(dirPath, fileName))
-	doc.pageFrom = doc.pageFrom + page
+		doc.SavePDF(path.Join(dirPath, fileName), doc.MainURL)
+		page, _ := api.PageCountFile(path.Join(dirPath, fileName))
+		doc.pageFrom = doc.pageFrom + page
+	} else {
+		fileNameMD := fmt.Sprintf("%s.md", text)
+		filePath := path.Join(dirPath, fileNameMD)
+		filePath = strings.ReplaceAll(filePath, "(🔥重点🔥)", "")
+		filePath = strings.ReplaceAll(filePath, "🔥", "")
+		filePath = strings.ReplaceAll(filePath, "(", "-")
+		filePath = strings.ReplaceAll(filePath, ")", "")
+		filePath = strings.Replace(filePath, dirPath, dirPath+"-md", 1)
+		doc.SaveMD(filePath, doc.MainURL)
+	}
 }
 
 // SavePDF description
@@ -295,17 +298,15 @@ func (doc *DocDownload) SaveMD(filePath string, pageUrl string) error {
 		fmt.Println("创建目录", dir)
 		os.MkdirAll(dir, os.ModePerm)
 	}
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		page := doc.browser.MustPage(pageUrl).MustWaitLoad()
-		defer page.Close()
 
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		dir = path.Dir(filePath)
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
 			fmt.Println("创建目录", dir)
 			os.MkdirAll(dir, os.ModePerm)
 		}
 
-		if err := doc.PageToMD(doc, page, filePath); err != nil {
+		if err := doc.PageToMD(doc, filePath, pageUrl); err != nil {
 			return err
 		}
 	}
