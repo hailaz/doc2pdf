@@ -156,7 +156,7 @@ func DownloadConfluence(mainURL string, outputDir string, mode string) {
 	}
 	doc.MenuRootSelector = "ul.plugin_pagetree_children_list.plugin_pagetree_children_list_noleftspace ul"
 	doc.ParseMenu = ParseConfluenceMenu
-	doc.IsDownloadMain = true
+	// doc.IsDownloadMain = true
 	doc.Start()
 	if doc.Mode == DocDownloadModePDF {
 		// 复制文件到其它目录
@@ -169,7 +169,7 @@ func DownloadConfluence(mainURL string, outputDir string, mode string) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		regx := regexp.MustCompile(`/pages/viewpage.action\?pageId=\d+|/display/gf/.*\)`)
+		regx := regexp.MustCompile(`/pages/viewpage.action\?pageId=\d+|/display/gf/.*?\)`)
 		for _, file := range files {
 			contents := gfile.GetContents(file)
 			urlList := regx.FindAllString(contents, -1)
@@ -180,13 +180,18 @@ func DownloadConfluence(mainURL string, outputDir string, mode string) {
 				if newURL, ok := mapData[u]; ok {
 					contents = strings.ReplaceAll(contents, u, newURL)
 				} else {
-					log.Println("not found")
+					log.Println("没有找到可替换路由", u)
 					contents = strings.ReplaceAll(contents, u, doc.baseURL+u)
 				}
 			}
 			contents = strings.ReplaceAll(contents, "；]", "]")
 			contents = strings.ReplaceAll(contents, "；)", ")")
 			contents = strings.ReplaceAll(contents, "- ```", "```")
+			contents = strings.ReplaceAll(contents, "内部可使用{.page}变量指定页码位置", "内部可使用`{.page}`变量指定页码位置")
+			contents = strings.ReplaceAll(contents, "/order/list/{page}.html", "`/order/list/{page}.html`")
+			contents = strings.ReplaceAll(contents, "{method}", "`{method}`")
+			contents = strings.ReplaceAll(contents, "<br>", "<br></br>")
+			contents = strings.ReplaceAll(contents, "<br></br></br>", "<br></br>")
 			contents = strings.ReplaceAll(contents, "git.w", "woahailaz")
 			contents = strings.ReplaceAll(contents, "woahailazoa.com", "github.com")
 			contents = strings.ReplaceAll(contents, "git.code.o", "gitcodeohailaz")
@@ -315,8 +320,11 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 			SaveMap(filePath, pageURL)
 			// 加标题
 			contents := gfile.GetContents(filePath)
-			contents = fmt.Sprintf("---\ntitle: %s\n---\n\n", docTitle) + contents
-			gfile.PutContents(filePath, contents)
+			mdTitle := fmt.Sprintf("---\ntitle: %s\n---\n\n", docTitle)
+			if !strings.HasPrefix(contents, "---") {
+				contents = mdTitle + contents
+				gfile.PutContents(filePath, contents)
+			}
 		}
 		// mapData := fmt.Sprintf("%s=>%s\n", pageURL, ReplacePath(path.Join(dirPath, fileNameMD), doc.OutputDir))
 		// gfile.PutContentsAppend(path.Join(doc.OutputDir+"-md-map", "map.txt"), mapData)
@@ -378,7 +386,7 @@ func PageToMD(doc *DocDownload, filePath string, pageUrl string) error {
 		// 加个缓存，免得每次都下载
 		page := doc.browser.MustPage(pageUrl).MustWaitLoad()
 		defer page.Close()
-		html, _ := page.HTML()
+		html, _ = page.HTML()
 
 		queryDoc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
 		if err != nil {
@@ -429,6 +437,7 @@ func PageToMD(doc *DocDownload, filePath string, pageUrl string) error {
 	// converter.Use(plugin.ConfluenceCodeBlock())
 	// converter.Use(plugin.ConfluenceAttachments())
 	converter.Use(plugin.Strikethrough(""))
+	converter.Use(plugin.Table())
 	markdown, err := converter.ConvertString(html)
 	if err != nil {
 		log.Fatal(err)
