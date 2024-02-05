@@ -40,6 +40,8 @@ var (
 		"latest": "https://goframe.org/display/gf",
 	}
 	mapData = make(map[string]string)
+	// 非法字符
+	validFileName = regexp.MustCompile(`[\\s\\\\/:\\*\\?\\\"<>\\|]`)
 )
 
 // DownloadGoFrameAll description
@@ -254,8 +256,13 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 		if err != nil {
 			continue
 		}
+
+		// 剔除非法字符
+		docTitle = validFileName.ReplaceAllString(docTitle, "")
 		log.Printf("title: %s\n", docTitle)
-		// if index >= 1 {
+
+		// 人为退出测试
+		// if doc.pageFrom >= 30 {
 		// 	break
 		// }
 		// 拼接完整的url
@@ -269,13 +276,14 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 			})
 			// 保存pdf
 			fileName := fmt.Sprintf("%d-%s.pdf", index, docTitle)
-			doc.fileList = append(doc.fileList, path.Join(dirPath, fileName))
-			err := doc.SavePDF(path.Join(dirPath, fileName), pageURL)
+			filePath := path.Join(dirPath, fileName)
+			doc.fileList = append(doc.fileList, filePath)
+			err := doc.SavePDF(filePath, pageURL)
 			if err != nil {
 				log.Printf("[err]SavePDF: %s", err)
 				continue
 			}
-			page, err := api.PageCountFile(path.Join(dirPath, fileName))
+			page, err := api.PageCountFile(filePath)
 			if err != nil {
 				log.Printf("[err]PageCountFile: %s", err)
 				continue

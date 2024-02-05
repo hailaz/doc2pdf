@@ -297,6 +297,7 @@ func (doc *DocDownload) Index(bms *[]pdfcpu.Bookmark) {
 //
 // author: hailaz
 func (doc *DocDownload) SavePDF(filePath string, pageUrl string) error {
+	// log.Println("SavePDF", filePath)
 	if doc.PageToPDF == nil {
 		return nil
 	}
@@ -311,7 +312,6 @@ func (doc *DocDownload) SavePDF(filePath string, pageUrl string) error {
 		if doc.SavePDFBefore != nil {
 			doc.SavePDFBefore(page)
 		}
-
 		if err := doc.PageToPDF(page, filePath); err != nil {
 			return err
 		}
