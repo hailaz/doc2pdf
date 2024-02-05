@@ -43,6 +43,10 @@ var (
 			Name:  "version",
 			Brief: "下载版本",
 			Short: "v",
+		}, gcmd.Argument{
+			Name:  "mode",
+			Brief: "下载模式，pdf或md，默认pdf",
+			Short: "m",
 		}),
 		Func: goframeFunc,
 	}
@@ -84,14 +88,15 @@ func confluenceFunc(ctx context.Context, parser *gcmd.Parser) (err error) {
 		return
 	}
 
-	doc2pdf.DownloadConfluence(index.String(), output.String())
+	doc2pdf.DownloadConfluence(index.String(), output.String(), doc2pdf.DocDownloadModePDF)
 	return
 }
 
 // goframeFunc description
 func goframeFunc(ctx context.Context, parser *gcmd.Parser) (err error) {
 	version := parser.GetOpt("version")
-	log.Printf("version: %v", version)
+	inMode := parser.GetOpt("mode", doc2pdf.DocDownloadModePDF)
+	log.Printf("version: %v, mode: %v", version, inMode)
 	if version != nil {
 		switch version.String() {
 		case "all":
@@ -100,7 +105,7 @@ func goframeFunc(ctx context.Context, parser *gcmd.Parser) (err error) {
 			doc2pdf.DownloadGoFrameWithVersion(version.String())
 		}
 	} else {
-		doc2pdf.DownloadGoFrameLatest()
+		doc2pdf.DownloadGoFrameLatest(inMode.String())
 	}
 	return
 }

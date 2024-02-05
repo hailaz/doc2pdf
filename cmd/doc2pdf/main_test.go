@@ -5,12 +5,15 @@ import (
 	"log"
 	"os"
 	"path"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/devices"
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
+	"github.com/gogf/gf/v2/os/gfile"
 	"github.com/hailaz/doc2pdf"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
@@ -190,4 +193,79 @@ func TestMerge(t *testing.T) {
 		{PageFrom: 1, Title: "Page 1: Applicant’s Form"},
 		{PageFrom: 2, Title: "Page 2: Bold 这是一个测试", Bold: true},
 	}, true, nil)
+}
+
+// TestMDPath description
+//
+// createTime: 2024-01-31 22:29:45
+func TestMDPath(t *testing.T) {
+	mdpath := "output/goframe-latest-md/15-其他资料/15-其他资料.md"
+
+	// 编写正则表达式
+	regex := regexp.MustCompile(`/\d+-`)
+
+	mdpath = regex.ReplaceAllString(mdpath, "/")
+	mdpath = strings.TrimSuffix(mdpath, ".md")
+
+	t.Log(mdpath)
+
+}
+
+// TestFuncName description
+//
+// createTime: 2024-01-31 22:38:03
+func TestFuncName(t *testing.T) {
+	files, err := gfile.ScanDir(`output\goframe-latest-md1`, "*.md", true)
+	if err != nil {
+		t.Error(err)
+	}
+	mapData := LoadMapData()
+	regx := regexp.MustCompile(`/pages/viewpage.action\?pageId=\d+|/display/gf/.*\)`)
+	for _, file := range files {
+		contents := gfile.GetContents(file)
+		urlList := regx.FindAllString(contents, -1)
+		for _, u := range urlList {
+			u = strings.TrimSuffix(u, ")")
+			// t.Log(u)
+			// t.Log(mapData[u])
+			if newURL, ok := mapData[u]; ok {
+				contents = strings.ReplaceAll(contents, u, newURL)
+			} else {
+				t.Log("not found")
+				contents = strings.ReplaceAll(contents, u, "https://goframe.org"+u)
+			}
+		}
+		contents = strings.ReplaceAll(contents, "；]", "]")
+		contents = strings.ReplaceAll(contents, "；)", ")")
+		contents = strings.ReplaceAll(contents, "- ```", "```")
+		err := gfile.PutContents(file, contents)
+		if err != nil {
+			t.Error(err)
+		}
+	}
+}
+
+// LoadMapData description
+//
+// createTime: 2024-01-31 22:45:27
+func LoadMapData() map[string]string {
+	mapData := make(map[string]string)
+	contents := gfile.GetContents(`D:\RAndD\go\project\doc2pdf\cmd\doc2pdf\output\goframe-latest-md-map\map.txt`)
+	contents = strings.ReplaceAll(contents, "https://goframe.org", "")
+	contents = strings.ReplaceAll(contents, "&src=contextnavpagetreemode", "")
+	contents = strings.ReplaceAll(contents, "?src=contextnavpagetreemode", "")
+	contents = strings.ReplaceAll(contents, "output/goframe-latest-md", "/docs")
+	// 编写正则表达式
+	regex := regexp.MustCompile(`/\d+-`)
+	lines := strings.Split(contents, "\n")
+	for _, line := range lines {
+		line = regex.ReplaceAllString(line, "/")
+		line = strings.TrimSuffix(line, ".md")
+		if strings.Contains(line, "=>") {
+			kv := strings.Split(line, "=>")
+			fmt.Println(line)
+			mapData[kv[0]] = kv[1]
+		}
+	}
+	return mapData
 }

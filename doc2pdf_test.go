@@ -21,7 +21,16 @@ func TestDownloadHailaz(t *testing.T) {
 //
 // author: hailaz
 func TestDownloadGoFrameLatest(t *testing.T) {
-	doc2pdf.DownloadGoFrameLatest()
+	doc2pdf.DownloadGoFrameLatest(doc2pdf.DocDownloadModePDF)
+}
+
+// TestDownloadGoFrameLatestMD description
+//
+// createTime: 2023-07-28 14:46:43
+//
+// author: hailaz
+func TestDownloadGoFrameLatestMD(t *testing.T) {
+	doc2pdf.DownloadGoFrameLatest(doc2pdf.DocDownloadModeMD)
 }
 
 // TestDownloadGoFrameAll description
