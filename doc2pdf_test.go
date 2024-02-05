@@ -1,8 +1,12 @@
 package doc2pdf_test
 
 import (
+	"log"
 	"testing"
 
+	md "github.com/JohannesKaufmann/html-to-markdown"
+	"github.com/JohannesKaufmann/html-to-markdown/plugin"
+	"github.com/gogf/gf/v2/os/gfile"
 	"github.com/hailaz/doc2pdf"
 )
 
@@ -49,4 +53,21 @@ func TestDownloadGoFrameAll(t *testing.T) {
 // author: hailaz
 func TestDownloadRuanyifeng(t *testing.T) {
 	doc2pdf.DownloadRuanyifengWeekly()
+}
+
+var htmlpath = `output\goframe-latest-md-html\6-微服务开发\6-服务负载均衡1.html`
+
+// TestH description
+//
+// createTime: 2024-02-05 18:17:01
+func TestH(t *testing.T) {
+	html := gfile.GetContents(htmlpath)
+	converter := md.NewConverter("", true, nil)
+	converter.Use(plugin.Strikethrough(""))
+	converter.Use(doc2pdf.ConverterTable())
+	markdown, err := converter.ConvertString(html)
+	if err != nil {
+		log.Fatal(err)
+	}
+	t.Log(markdown)
 }

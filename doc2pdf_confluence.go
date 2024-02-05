@@ -192,8 +192,8 @@ func DownloadConfluence(mainURL string, outputDir string, mode string) {
 			contents = strings.ReplaceAll(contents, "内部可使用{.page}变量指定页码位置", "内部可使用`{.page}`变量指定页码位置")
 			contents = strings.ReplaceAll(contents, "/order/list/{page}.html", "`/order/list/{page}.html`")
 			contents = strings.ReplaceAll(contents, "{method}", "`{method}`")
-			contents = strings.ReplaceAll(contents, "<br>", "<br></br>")
-			contents = strings.ReplaceAll(contents, "<br></br></br>", "<br></br>")
+			// contents = strings.ReplaceAll(contents, "<br>", "<br></br>")
+			// contents = strings.ReplaceAll(contents, "<br></br></br>", "<br></br>")
 			contents = strings.ReplaceAll(contents, "git.w", "woahailaz")
 			contents = strings.ReplaceAll(contents, "woahailazoa.com", "github.com")
 			contents = strings.ReplaceAll(contents, "git.code.o", "gitcodeohailaz")
@@ -389,7 +389,6 @@ func PageToMD(doc *DocDownload, filePath string, pageUrl string) error {
 		page := doc.browser.MustPage(pageUrl).MustWaitLoad()
 		defer page.Close()
 		html, _ = page.HTML()
-
 		queryDoc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
 		if err != nil {
 			log.Fatal(err)
@@ -480,7 +479,7 @@ func PageToMD(doc *DocDownload, filePath string, pageUrl string) error {
 		},
 	})
 	converter.Use(plugin.Strikethrough(""))
-	converter.Use(plugin.Table())
+	converter.Use(ConverterTable())
 	markdown, err := converter.ConvertString(html)
 	if err != nil {
 		log.Fatal(err)
