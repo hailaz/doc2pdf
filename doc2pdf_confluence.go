@@ -256,6 +256,7 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 		if err != nil {
 			continue
 		}
+		srcTitle := docTitle
 
 		// 剔除非法字符
 		docTitle = validFileName.ReplaceAllString(docTitle, "")
@@ -345,7 +346,7 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 			SaveMap(ReplacePath(path.Join(dirPath, fmt.Sprintf("%d-%s", index, docTitle)), doc.OutputDir()), pageURL)
 			// 加标题
 			contents := gfile.GetContents(filePath)
-			mdTitle := fmt.Sprintf("---\ntitle: %s\n---\n\n", docTitle)
+			mdTitle := fmt.Sprintf("---\ntitle: '%s'\n---\n\n", srcTitle)
 			if !strings.HasPrefix(contents, "---") {
 				contents = mdTitle + contents
 				gfile.PutContents(filePath, contents)
