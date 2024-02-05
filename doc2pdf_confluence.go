@@ -41,7 +41,7 @@ var (
 	}
 	mapData = make(map[string]string)
 	// 非法字符
-	validFileName = regexp.MustCompile(`[\\s\\\\/:\\*\\?\\\"<>\\|]`)
+	validFileName = regexp.MustCompile(`[\/\\":|*?<>]`)
 )
 
 // DownloadGoFrameAll description
