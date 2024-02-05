@@ -21,7 +21,7 @@ func TestDownloadHailaz(t *testing.T) {
 //
 // author: hailaz
 func TestDownloadGoFrameLatest(t *testing.T) {
-	doc2pdf.DownloadGoFrameLatest()
+	doc2pdf.DownloadGoFrameLatest(doc2pdf.DocDownloadModePDF)
 }
 
 // TestDownloadGoFrameLatestMD description
@@ -30,7 +30,7 @@ func TestDownloadGoFrameLatest(t *testing.T) {
 //
 // author: hailaz
 func TestDownloadGoFrameLatestMD(t *testing.T) {
-	doc2pdf.DownloadConfluence("https://goframe.org/display/gf", "./output/goframe-latest", doc2pdf.DocDownloadModeMD)
+	doc2pdf.DownloadGoFrameLatest(doc2pdf.DocDownloadModeMD)
 }
 
 // TestDownloadGoFrameAll description

@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
+	"github.com/gogf/gf/v2/os/gfile"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 )
@@ -25,7 +26,7 @@ const (
 // DocDownload description
 type DocDownload struct {
 	MainURL        string // 文档入口地址
-	OutputDir      string // 输出目录
+	outputDir      string // 输出目录
 	MergePDFNums   int    // 每次合并的pdf数量，多文档时能减轻内存压力
 	TempSuffix     string // 临时文件后缀
 	IsDownloadMain bool
@@ -76,7 +77,7 @@ func NewDocDownload(mainURL, outputDir string) *DocDownload {
 	baseURL := fmt.Sprintf("%s://%s", parsedURL.Scheme, parsedURL.Host)
 	return &DocDownload{
 		MainURL:        mainURL,
-		OutputDir:      path.Join(outputDir),
+		outputDir:      path.Join(outputDir),
 		MergePDFNums:   20,
 		TempSuffix:     ".temp.pdf",
 		IsDownloadMain: false,
@@ -103,10 +104,11 @@ func (doc *DocDownload) Start() {
 		doc.Index(&doc.bookmark)
 	}
 	if doc.Mode == DocDownloadModeMD {
+		gfile.Remove(doc.OutputDir())
 		if doc.ParseMenu != nil {
 			log.Println("菜单解析")
 			root := doc.GetMenuRoot(doc.MenuRootSelector)
-			doc.ParseMenu(doc, root, 0, doc.OutputDir, nil)
+			doc.ParseMenu(doc, root, 0, doc.OutputDir(), nil)
 		}
 	}
 
@@ -114,7 +116,7 @@ func (doc *DocDownload) Start() {
 		if doc.ParseMenu != nil {
 			log.Println("菜单解析")
 			root := doc.GetMenuRoot(doc.MenuRootSelector)
-			doc.ParseMenu(doc, root, 0, doc.OutputDir, &doc.bookmark)
+			doc.ParseMenu(doc, root, 0, doc.OutputDir(), &doc.bookmark)
 		}
 
 		log.Println("判断是否合并文件")
@@ -140,6 +142,30 @@ func (doc *DocDownload) GetBrowser() *rod.Browser {
 	return doc.browser
 }
 
+// OutputDir description
+//
+// createTime: 2024-02-05 15:57:59
+func (doc *DocDownload) OutputDir() string {
+	if doc.Mode == DocDownloadModeMD {
+		return doc.outputDir + "-md"
+	}
+	return doc.outputDir
+}
+
+// StaticDir description
+//
+// createTime: 2024-02-05 15:57:59
+func (doc *DocDownload) StaticDir() string {
+	return doc.OutputDir() + "-static"
+}
+
+// HTMLDir description
+//
+// createTime: 2024-02-05 15:57:59
+func (doc *DocDownload) HTMLDir() string {
+	return doc.OutputDir() + "-html"
+}
+
 // Close 关闭
 //
 // createTime: 2023-07-28 14:23:07
@@ -157,7 +183,7 @@ func (doc *DocDownload) Close() error {
 // author: hailaz
 func (doc *DocDownload) Show() {
 	fmt.Println("MainURL:", doc.MainURL)
-	fmt.Println("OutputDir:", doc.OutputDir)
+	fmt.Println("OutputDir:", doc.OutputDir())
 	fmt.Println("baseURL:", doc.baseURL)
 }
 
@@ -177,14 +203,14 @@ func (doc *DocDownload) MrPDF() {
 	if fLen > 0 {
 		index := 0
 		tempOldName := ""
-		tempName := fmt.Sprintf("%s.%d%s", doc.OutputDir, index, fileName)
+		tempName := fmt.Sprintf("%s.%d%s", doc.OutputDir(), index, fileName)
 		for {
 			if index+preNum >= fLen {
 				log.Printf("最后合并%d-%d(%d)", index, fLen, fLen)
 				if index == 0 {
-					api.MergeCreateFile(doc.fileList[index:fLen], doc.OutputDir+fileName, nil)
+					api.MergeCreateFile(doc.fileList[index:fLen], doc.OutputDir()+fileName, nil)
 				} else {
-					api.MergeCreateFile(append([]string{tempOldName}, doc.fileList[index:fLen]...), doc.OutputDir+fileName, nil)
+					api.MergeCreateFile(append([]string{tempOldName}, doc.fileList[index:fLen]...), doc.OutputDir()+fileName, nil)
 					os.Remove(tempOldName)
 				}
 				break
@@ -199,7 +225,7 @@ func (doc *DocDownload) MrPDF() {
 
 			index += preNum
 			tempOldName = tempName
-			tempName = fmt.Sprintf("%s.%d%s", doc.OutputDir, index, fileName)
+			tempName = fmt.Sprintf("%s.%d%s", doc.OutputDir(), index, fileName)
 		}
 	}
 }
@@ -210,8 +236,8 @@ func (doc *DocDownload) MrPDF() {
 //
 // author: hailaz
 func (doc *DocDownload) AddBookmarks() error {
-	log.Println("添加书签", doc.OutputDir+".pdf")
-	return api.AddBookmarksFile(doc.OutputDir+doc.TempSuffix, doc.OutputDir+".pdf", doc.bookmark, true, nil)
+	log.Println("添加书签", doc.OutputDir()+".pdf")
+	return api.AddBookmarksFile(doc.OutputDir()+doc.TempSuffix, doc.OutputDir()+".pdf", doc.bookmark, true, nil)
 }
 
 // GetMenuRoot description
@@ -229,7 +255,7 @@ func (doc *DocDownload) GetMenuRoot(selector string) *rod.Element {
 //
 // author: hailaz
 func (doc *DocDownload) Index(bms *[]pdfcpu.Bookmark) {
-	dirPath := doc.OutputDir
+	dirPath := doc.OutputDir()
 	text := "首页"
 
 	if doc.Mode == DocDownloadModePDF {
@@ -251,7 +277,6 @@ func (doc *DocDownload) Index(bms *[]pdfcpu.Bookmark) {
 		filePath = strings.ReplaceAll(filePath, "🔥", "")
 		filePath = strings.ReplaceAll(filePath, "(", "-")
 		filePath = strings.ReplaceAll(filePath, ")", "")
-		filePath = strings.Replace(filePath, dirPath, dirPath+"-md", 1)
 		doc.SaveMD(filePath, doc.MainURL)
 	}
 }
@@ -329,7 +354,7 @@ func PageToPDF(page *rod.Page, filePath string) error {
 //
 // author: hailaz
 func (doc *DocDownload) Move(targetDir string) error {
-	src := doc.OutputDir + ".pdf"
+	src := doc.OutputDir() + ".pdf"
 	dst := path.Join(targetDir, path.Base(src))
 
 	if _, err := os.Stat(targetDir); os.IsNotExist(err) {

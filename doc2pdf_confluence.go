@@ -75,8 +75,8 @@ func DownloadGoFrameWithVersion(version string) {
 // createTime: 2023-07-28 15:21:19
 //
 // author: hailaz
-func DownloadGoFrameLatest() {
-	DownloadConfluence("https://goframe.org/display/gf", "./output/goframe-latest", DocDownloadModePDF)
+func DownloadGoFrameLatest(mode string) {
+	DownloadConfluence("https://goframe.org/display/gf", "./output/goframe-latest", mode)
 }
 
 // DownloadConfluence 下载confluence文档
@@ -166,7 +166,7 @@ func DownloadConfluence(mainURL string, outputDir string, mode string) {
 	// 遍历文件，替换链接
 	if doc.Mode == DocDownloadModeMD {
 		// 地址转换
-		files, err := gfile.ScanDir(doc.OutputDir+"-md", "*.md", true)
+		files, err := gfile.ScanDir(doc.OutputDir(), "*.md", true)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -316,7 +316,7 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 			fileNameMD = fmt.Sprintf("%d-%s.md", index, docTitle)
 		}
 		if doc.Mode == DocDownloadModeMD {
-			filePath := ReplacePath(path.Join(dirPath, fileNameMD), doc.OutputDir)
+			filePath := ReplacePath(path.Join(dirPath, fileNameMD), doc.OutputDir())
 			doc.SaveMD(filePath, pageURL)
 			SaveMap(filePath, pageURL)
 			// 加标题
@@ -327,8 +327,8 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 				gfile.PutContents(filePath, contents)
 			}
 		}
-		// mapData := fmt.Sprintf("%s=>%s\n", pageURL, ReplacePath(path.Join(dirPath, fileNameMD), doc.OutputDir))
-		// gfile.PutContentsAppend(path.Join(doc.OutputDir+"-md-map", "map.txt"), mapData)
+		// mapData := fmt.Sprintf("%s=>%s\n", pageURL, ReplacePath(path.Join(dirPath, fileNameMD), doc.OutputDir()))
+		// gfile.PutContentsAppend(path.Join(doc.OutputDir()+"-map", "map.txt"), mapData)
 		index++
 	}
 
@@ -358,7 +358,6 @@ func ReplacePath(filePath string, outPath string) string {
 	filePath = strings.ReplaceAll(filePath, "🔥", "")
 	filePath = strings.ReplaceAll(filePath, "(", "-")
 	filePath = strings.ReplaceAll(filePath, ")", "")
-	filePath = strings.Replace(filePath, outPath, outPath+"-md", 1)
 	return filePath
 }
 
@@ -380,7 +379,7 @@ func PageToMD(doc *DocDownload, filePath string, pageUrl string) error {
 
 	// }`)
 
-	cacheHtml := strings.ReplaceAll(filePath, doc.OutputDir+"-md", doc.OutputDir+"-html")
+	cacheHtml := strings.ReplaceAll(filePath, doc.OutputDir(), doc.HTMLDir())
 	cacheHtml = strings.TrimSuffix(cacheHtml, ".md") + ".html"
 	html := ""
 
@@ -401,7 +400,7 @@ func PageToMD(doc *DocDownload, filePath string, pageUrl string) error {
 		// page.MustElement("img").MustResource()
 		host := doc.baseURL
 		// pageDir := path.Dir(filePath)
-		pageDir := path.Join(doc.OutputDir + "-md-static")
+		pageDir := path.Join(doc.StaticDir())
 
 		queryDoc.Find("#main-content").Find("img").Each(func(i int, s *goquery.Selection) {
 			src, _ := s.Attr("src")
