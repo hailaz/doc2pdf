@@ -310,8 +310,8 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 					}
 					count++
 				}
-
 			}
+			// 有子节点的文件夹
 			fileNameMD = fmt.Sprintf("%d-%s/%d-%s.md", index, docTitle, index, docTitle)
 		} else {
 			fileNameMD = fmt.Sprintf("%d-%s.md", index, docTitle)
@@ -319,7 +319,9 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 		if doc.Mode == DocDownloadModeMD {
 			filePath := ReplacePath(path.Join(dirPath, fileNameMD), doc.OutputDir())
 			doc.SaveMD(filePath, pageURL)
-			SaveMap(filePath, pageURL)
+
+			// 这里必须这样转，否则层级出问题
+			SaveMap(ReplacePath(path.Join(dirPath, fmt.Sprintf("%d-%s", index, docTitle)), doc.OutputDir()), pageURL)
 			// 加标题
 			contents := gfile.GetContents(filePath)
 			mdTitle := fmt.Sprintf("---\ntitle: %s\n---\n\n", docTitle)
@@ -346,7 +348,7 @@ func SaveMap(filePath string, pageURL string) {
 	// 编写正则表达式
 	regex := regexp.MustCompile(`/\d+-`)
 	filePath = regex.ReplaceAllString(filePath, "/")
-	filePath = strings.TrimSuffix(filePath, ".md")
+	// filePath = strings.TrimSuffix(filePath, ".md")
 	filePath = strings.ReplaceAll(filePath, " ", "%20")
 	mapData[pageURL] = filePath
 }
@@ -415,7 +417,10 @@ func PageToMD(doc *DocDownload, filePath string, pageUrl string) error {
 				log.Fatal(err)
 				s.SetAttr("src", host+src)
 			}
+			// urldecode
+			// sourceFile, _ := url.QueryUnescape(strings.Split(src, "?")[0])
 			resPath := path.Join(pageDir, strings.Split(src, "?")[0])
+
 			// fmt.Println("resPath", resPath)
 			// log.Println("save file:", resPath)
 			err = gfile.PutBytes(resPath, res)

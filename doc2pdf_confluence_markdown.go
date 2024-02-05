@@ -57,8 +57,10 @@ func ConverterTable() md.Plugin {
 				Filter: []string{"th", "td"},
 				Replacement: func(content string, selec *goquery.Selection, opt *md.Options) *string {
 					// 有些表格的竖杠没有被处理
-					content = strings.ReplaceAll(content, "\\|", "|")
-					content = strings.ReplaceAll(content, "|", "\\|")
+					if selec.Find("code").Length() > 0 {
+						codeText := selec.Find("code").Text()
+						content = strings.ReplaceAll(content, codeText, strings.ReplaceAll(codeText, "|", "\\|"))
+					}
 					return md.String(getCellContent(content, selec))
 				},
 			},
