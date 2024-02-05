@@ -33,6 +33,7 @@ var (
 		"v2.2":   "https://goframe.org/pages/viewpage.action?pageId=73224713",
 		"v2.3":   "https://goframe.org/pages/viewpage.action?pageId=92131939",
 		"v2.4":   "https://goframe.org/pages/viewpage.action?pageId=96885694",
+		"v2.5":   "https://goframe.org/pages/viewpage.action?pageId=120273316",
 		"latest": "https://goframe.org/display/gf",
 	}
 	mapData = make(map[string]string)
@@ -345,6 +346,7 @@ func SaveMap(filePath string, pageURL string) {
 	regex := regexp.MustCompile(`/\d+-`)
 	filePath = regex.ReplaceAllString(filePath, "/")
 	filePath = strings.TrimSuffix(filePath, ".md")
+	filePath = strings.ReplaceAll(filePath, " ", "%20")
 	mapData[pageURL] = filePath
 }
 
