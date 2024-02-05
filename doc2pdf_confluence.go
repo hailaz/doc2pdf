@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -19,6 +20,7 @@ import (
 	"github.com/go-rod/rod/lib/devices"
 	"github.com/go-rod/rod/lib/proto"
 	"github.com/go-rod/rod/lib/utils"
+	"github.com/gogf/gf/v2/crypto/gmd5"
 	"github.com/gogf/gf/v2/os/gfile"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
@@ -158,7 +160,7 @@ func DownloadConfluence(mainURL string, outputDir string, mode string) {
 	}
 	doc.MenuRootSelector = "ul.plugin_pagetree_children_list.plugin_pagetree_children_list_noleftspace ul"
 	doc.ParseMenu = ParseConfluenceMenu
-	// doc.IsDownloadMain = true
+	doc.IsDownloadMain = true
 	doc.Start()
 	if doc.Mode == DocDownloadModePDF {
 		// 复制文件到其它目录
@@ -370,17 +372,7 @@ func ReplacePath(filePath string, outPath string) string {
 //
 // author: hailaz
 func PageToMD(doc *DocDownload, filePath string, pageUrl string) error {
-
-	// page.GetResource()
-
-	// page.MustEval(`() => {
-	// 	// 移除菜单
-	// 	var element = document.querySelector('.ia-splitter-left');
-	// 	if(element) {
-	// 		element.parentNode.removeChild(element);
-	// 	}
-
-	// }`)
+	log.Println("PageToMD", filePath)
 
 	cacheHtml := strings.ReplaceAll(filePath, doc.OutputDir(), doc.HTMLDir())
 	cacheHtml = strings.TrimSuffix(cacheHtml, ".md") + ".html"
@@ -417,9 +409,12 @@ func PageToMD(doc *DocDownload, filePath string, pageUrl string) error {
 				log.Fatal(err)
 				s.SetAttr("src", host+src)
 			}
-			// urldecode
-			// sourceFile, _ := url.QueryUnescape(strings.Split(src, "?")[0])
-			resPath := path.Join(pageDir, strings.Split(src, "?")[0])
+			// 使用新的文件名，避免无法识别
+			resBaseName := strings.Split(src, "?")[0]
+			resExt := filepath.Ext(resBaseName)
+			resMD5Name, _ := gmd5.EncryptString(resBaseName)
+			srcPath := path.Join("/markdown", resMD5Name+resExt)
+			resPath := path.Join(pageDir, srcPath)
 
 			// fmt.Println("resPath", resPath)
 			// log.Println("save file:", resPath)
@@ -427,8 +422,8 @@ func PageToMD(doc *DocDownload, filePath string, pageUrl string) error {
 			if err != nil {
 				log.Fatal(err)
 			}
-			// // 替换src
-			// s.SetAttr("src", resBaseName)
+			// 替换src
+			s.SetAttr("src", srcPath)
 			// s.SetAttr("src", host+src)
 			// log.Println("src change", resBaseName)
 		})
@@ -440,9 +435,7 @@ func PageToMD(doc *DocDownload, filePath string, pageUrl string) error {
 	}
 
 	converter := md.NewConverter("", true, nil)
-	// converter.Use(plugin.ConfluenceCodeBlock())
-	// converter.Use(plugin.ConfluenceAttachments())
-	// md文档只有一个一级标题，所以需要自动降级
+	// md文档只能有一个一级标题，所以需要自动降级
 	converter.AddRules(md.Rule{
 		Filter: []string{"h1", "h2", "h3", "h4", "h5", "h6"},
 		Replacement: func(content string, selec *goquery.Selection, opt *md.Options) *string {

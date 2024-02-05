@@ -100,11 +100,12 @@ func NewDocDownload(mainURL, outputDir string) *DocDownload {
 func (doc *DocDownload) Start() {
 	doc.Show()
 	log.Println("判断是否保存入口页")
-	if doc.IsDownloadMain {
-		doc.Index(&doc.bookmark)
-	}
+
 	if doc.Mode == DocDownloadModeMD {
 		gfile.Remove(doc.OutputDir())
+		if doc.IsDownloadMain {
+			doc.Index(&doc.bookmark)
+		}
 		if doc.ParseMenu != nil {
 			log.Println("菜单解析")
 			root := doc.GetMenuRoot(doc.MenuRootSelector)
@@ -113,6 +114,9 @@ func (doc *DocDownload) Start() {
 	}
 
 	if doc.Mode == DocDownloadModePDF {
+		if doc.IsDownloadMain {
+			doc.Index(&doc.bookmark)
+		}
 		if doc.ParseMenu != nil {
 			log.Println("菜单解析")
 			root := doc.GetMenuRoot(doc.MenuRootSelector)
