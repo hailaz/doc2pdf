@@ -7,6 +7,7 @@ import (
 	"os"
 	"path"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -437,6 +438,47 @@ func PageToMD(doc *DocDownload, filePath string, pageUrl string) error {
 	converter := md.NewConverter("", true, nil)
 	// converter.Use(plugin.ConfluenceCodeBlock())
 	// converter.Use(plugin.ConfluenceAttachments())
+	// md文档只有一个一级标题，所以需要自动降级
+	converter.AddRules(md.Rule{
+		Filter: []string{"h1", "h2", "h3", "h4", "h5", "h6"},
+		Replacement: func(content string, selec *goquery.Selection, opt *md.Options) *string {
+			if strings.TrimSpace(content) == "" {
+				return nil
+			}
+
+			content = strings.Replace(content, "\n", " ", -1)
+			content = strings.Replace(content, "\r", " ", -1)
+			content = strings.Replace(content, `#`, `\#`, -1)
+			content = strings.TrimSpace(content)
+
+			insideLink := selec.ParentsFiltered("a").Length() > 0
+			if insideLink {
+				text := opt.StrongDelimiter + content + opt.StrongDelimiter
+				text = md.AddSpaceIfNessesary(selec, text)
+				return &text
+			}
+
+			node := goquery.NodeName(selec)
+			level, err := strconv.Atoi(node[1:])
+			if err != nil {
+				return nil
+			}
+
+			if opt.HeadingStyle == "setext" && level < 3 {
+				line := "-"
+				if level == 1 {
+					line = "="
+				}
+
+				underline := strings.Repeat(line, len(content))
+				return md.String("\n\n" + content + "\n" + underline + "\n\n")
+			}
+
+			prefix := strings.Repeat("#", level+1)
+			text := "\n\n" + prefix + " " + content + "\n\n"
+			return &text
+		},
+	})
 	converter.Use(plugin.Strikethrough(""))
 	converter.Use(plugin.Table())
 	markdown, err := converter.ConvertString(html)
