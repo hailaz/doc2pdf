@@ -258,13 +258,10 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 		// if index >= 1 {
 		// 	break
 		// }
-		// if len(*bms) >= 5 {
-		// 	return
-		// }
 		// 拼接完整的url
 		pageURL := doc.baseURL + *href
 		if doc.Mode == DocDownloadModePDF {
-
+			// log.Printf("pageFrom: %d", doc.pageFrom)
 			// 保存书签
 			*bms = append(*bms, pdfcpu.Bookmark{
 				Title:    docTitle,
@@ -273,9 +270,16 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 			// 保存pdf
 			fileName := fmt.Sprintf("%d-%s.pdf", index, docTitle)
 			doc.fileList = append(doc.fileList, path.Join(dirPath, fileName))
-			doc.SavePDF(path.Join(dirPath, fileName), pageURL)
-
-			page, _ := api.PageCountFile(path.Join(dirPath, fileName))
+			err := doc.SavePDF(path.Join(dirPath, fileName), pageURL)
+			if err != nil {
+				log.Printf("[err]SavePDF: %s", err)
+				continue
+			}
+			page, err := api.PageCountFile(path.Join(dirPath, fileName))
+			if err != nil {
+				log.Printf("[err]PageCountFile: %s", err)
+				continue
+			}
 			doc.pageFrom = doc.pageFrom + page
 
 			log.Printf("文档累计页数%d，当前文件页数%d： %s\n", doc.pageFrom, page, path.Join(dirPath, fileName))
@@ -294,8 +298,15 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 						// 递归子节点
 						dirName := fmt.Sprintf("%d-%s", index, docTitle)
 						if bms != nil {
-							(*bms)[index].Children = make([]pdfcpu.Bookmark, 0)
-							doc.ParseMenu(doc, ul, level+1, path.Join(dirPath, dirName), &((*bms)[index].Children))
+							bmsIndex := index
+							// 因为有首页，所以要加1
+							if level == 0 && doc.IsDownloadMain {
+								bmsIndex += 1
+							}
+							// log.Println("bmsIndex", level, bmsIndex, len(*bms))
+							thisBms := &((*bms)[bmsIndex])
+							thisBms.Children = make([]pdfcpu.Bookmark, 0)
+							doc.ParseMenu(doc, ul, level+1, path.Join(dirPath, dirName), &thisBms.Children)
 						} else {
 							doc.ParseMenu(doc, ul, level+1, path.Join(dirPath, dirName), nil)
 						}

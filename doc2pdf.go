@@ -111,9 +111,7 @@ func (doc *DocDownload) Start() {
 			root := doc.GetMenuRoot(doc.MenuRootSelector)
 			doc.ParseMenu(doc, root, 0, doc.OutputDir(), nil)
 		}
-	}
-
-	if doc.Mode == DocDownloadModePDF {
+	} else if doc.Mode == DocDownloadModePDF {
 		if doc.IsDownloadMain {
 			doc.Index(&doc.bookmark)
 		}
@@ -241,6 +239,7 @@ func (doc *DocDownload) MrPDF() {
 // author: hailaz
 func (doc *DocDownload) AddBookmarks() error {
 	log.Println("添加书签", doc.OutputDir()+".pdf")
+	// gutil.Dump(doc.bookmark)
 	return api.AddBookmarksFile(doc.OutputDir()+doc.TempSuffix, doc.OutputDir()+".pdf", doc.bookmark, true, nil)
 }
 
@@ -268,11 +267,18 @@ func (doc *DocDownload) Index(bms *[]pdfcpu.Bookmark) {
 			PageFrom: doc.pageFrom,
 		})
 
-		fileName := fmt.Sprintf("%s.md", text)
-		doc.fileList = append(doc.fileList, path.Join(dirPath, fileName))
+		fileName := fmt.Sprintf("%s.pdf", text)
+		filePath := path.Join(dirPath, fileName)
+		doc.fileList = append(doc.fileList, filePath)
 
-		doc.SavePDF(path.Join(dirPath, fileName), doc.MainURL)
-		page, _ := api.PageCountFile(path.Join(dirPath, fileName))
+		err := doc.SavePDF(filePath, doc.MainURL)
+		if err != nil {
+			log.Println("SavePDF Error:", err)
+		}
+		page, err := api.PageCountFile(filePath)
+		if err != nil {
+			log.Println("SavePDF Error:", err)
+		}
 		doc.pageFrom = doc.pageFrom + page
 	} else {
 		fileNameMD := fmt.Sprintf("%s.md", text)
@@ -296,7 +302,7 @@ func (doc *DocDownload) SavePDF(filePath string, pageUrl string) error {
 	}
 	dir := path.Dir(filePath)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		fmt.Println("创建目录", dir)
+		log.Println("创建目录", dir)
 		os.MkdirAll(dir, os.ModePerm)
 	}
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
