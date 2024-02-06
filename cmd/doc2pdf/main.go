@@ -100,9 +100,9 @@ func goframeFunc(ctx context.Context, parser *gcmd.Parser) (err error) {
 	if version != nil {
 		switch version.String() {
 		case "all":
-			doc2pdf.DownloadGoFrameAll()
+			doc2pdf.DownloadGoFrameAll(inMode.String())
 		default:
-			doc2pdf.DownloadGoFrameWithVersion(version.String())
+			doc2pdf.DownloadGoFrameWithVersion(version.String(), inMode.String())
 		}
 	} else {
 		doc2pdf.DownloadGoFrameLatest(inMode.String())

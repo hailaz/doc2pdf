@@ -43,7 +43,7 @@ func TestDownloadGoFrameLatestMD(t *testing.T) {
 //
 // author: hailaz
 func TestDownloadGoFrameAll(t *testing.T) {
-	doc2pdf.DownloadGoFrameAll()
+	doc2pdf.DownloadGoFrameAll(doc2pdf.DocDownloadModePDF)
 }
 
 // TestDownloadRuanyifeng description

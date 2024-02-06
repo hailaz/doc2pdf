@@ -49,13 +49,13 @@ var (
 // createTime: 2023-07-28 15:27:17
 //
 // author: hailaz
-func DownloadGoFrameAll() {
+func DownloadGoFrameAll(mode string) {
 	wg := sync.WaitGroup{}
 	for ver, main := range versionList {
 		ver, main := ver, main
 		wg.Add(1)
 		func() {
-			DownloadConfluence(main, "./output/goframe-"+ver, DocDownloadModePDF)
+			DownloadConfluence(main, "./output/goframe-"+ver, mode)
 			wg.Done()
 		}()
 	}
@@ -67,9 +67,9 @@ func DownloadGoFrameAll() {
 // createTime: 2023-08-08 18:34:08
 //
 // author: hailaz
-func DownloadGoFrameWithVersion(version string) {
+func DownloadGoFrameWithVersion(version string, mode string) {
 	if main, ok := versionList[version]; ok {
-		DownloadConfluence(main, "./output/goframe-"+version, DocDownloadModePDF)
+		DownloadConfluence(main, "./output/goframe-"+version, mode)
 	} else {
 		log.Printf("版本号不存在")
 	}
@@ -175,20 +175,39 @@ func DownloadConfluence(mainURL string, outputDir string, mode string) {
 		if err != nil {
 			log.Fatal(err)
 		}
-		regx := regexp.MustCompile(`/pages/viewpage.action\?pageId=\d+|/display/gf/.*?\)`)
+		regx := regexp.MustCompile(`\(/pages/viewpage.action\?pageId=\d+.*?\)|\(/display/.*?\)|\(/download/attachments/.*?\)`)
 		for _, file := range files {
 			contents := gfile.GetContents(file)
 			urlList := regx.FindAllString(contents, -1)
-			for _, u := range urlList {
-				u = strings.TrimSuffix(u, ")")
-				// t.Log(u)
-				// t.Log(mapData[u])
-				if newURL, ok := mapData[u]; ok {
-					contents = strings.ReplaceAll(contents, u, newURL)
-				} else {
-					log.Println("没有找到可替换路由", u)
-					contents = strings.ReplaceAll(contents, u, doc.baseURL+u)
+			uMap := make(map[string]bool)
+			for _, urlTemp := range urlList {
+				urlTemp = strings.TrimSuffix(urlTemp, ")")
+				urlTemp = strings.TrimPrefix(urlTemp, "(")
+
+				if uMap[urlTemp] {
+					continue
 				}
+				uMap[urlTemp] = true
+				// TODO 这里需要优化
+				if strings.Contains(urlTemp, "#") {
+					key := strings.Split(urlTemp, "#")[0]
+					if newURL, ok := mapData[key]; ok {
+						log.Println("找到可替换路由", urlTemp, "替换为", newURL)
+						contents = strings.ReplaceAll(contents, urlTemp, newURL)
+					} else {
+						log.Println("没有找到可替换路由", urlTemp, "补充为", doc.baseURL+urlTemp)
+						contents = strings.ReplaceAll(contents, urlTemp, doc.baseURL+urlTemp)
+					}
+				} else {
+					if newURL, ok := mapData[urlTemp]; ok {
+						log.Println("找到可替换路由", urlTemp, "替换为", newURL)
+						contents = strings.ReplaceAll(contents, "("+urlTemp+")", "("+newURL+")")
+					} else {
+						log.Println("没有找到可替换路由", urlTemp, "补充为", doc.baseURL+urlTemp)
+						contents = strings.ReplaceAll(contents, "("+urlTemp+")", "("+doc.baseURL+urlTemp+")")
+					}
+				}
+
 			}
 			contents = strings.ReplaceAll(contents, "；]", "]")
 			contents = strings.ReplaceAll(contents, "；)", ")")
@@ -196,8 +215,6 @@ func DownloadConfluence(mainURL string, outputDir string, mode string) {
 			contents = strings.ReplaceAll(contents, "内部可使用{.page}变量指定页码位置", "内部可使用`{.page}`变量指定页码位置")
 			contents = strings.ReplaceAll(contents, "/order/list/{page}.html", "`/order/list/{page}.html`")
 			contents = strings.ReplaceAll(contents, "{method}", "`{method}`")
-			// contents = strings.ReplaceAll(contents, "<br>", "<br></br>")
-			// contents = strings.ReplaceAll(contents, "<br></br></br>", "<br></br>")
 			contents = strings.ReplaceAll(contents, "git.w", "woahailaz")
 			contents = strings.ReplaceAll(contents, "woahailazoa.com", "github.com")
 			contents = strings.ReplaceAll(contents, "git.code.o", "gitcodeohailaz")
@@ -303,6 +320,7 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 				for {
 					time.Sleep(100 * time.Millisecond)
 					if ul, err := li.Element("div.plugin_pagetree_children_container ul"); err == nil {
+						log.Printf("在第%d次找到子节点\n", count)
 						// log.Printf("[子菜单]: %s", ul.MustText())
 						// 递归子节点
 						dirName := fmt.Sprintf("%d-%s", index, docTitle)
@@ -319,8 +337,7 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 						} else {
 							doc.ParseMenu(doc, ul, level+1, path.Join(dirPath, dirName), nil)
 						}
-						// index++
-						log.Printf("在第%d次找到子节点\n", count)
+
 						break
 					} else {
 						log.Printf("尝试第%d次，没有子节点，待重试: %s\n", count, err)
@@ -346,7 +363,12 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 			SaveMap(ReplacePath(path.Join(dirPath, fmt.Sprintf("%d-%s", index, docTitle)), doc.OutputDir()), pageURL)
 			// 加标题
 			contents := gfile.GetContents(filePath)
-			mdTitle := fmt.Sprintf("---\ntitle: '%s'\n---\n\n", srcTitle)
+			// 引号
+			quotation := "'"
+			if strings.Contains(srcTitle, "'") {
+				quotation = "\""
+			}
+			mdTitle := fmt.Sprintf("---\ntitle: %s%s%s\nsidebar_position: %d\n---\n\n", quotation, srcTitle, quotation, index)
 			if !strings.HasPrefix(contents, "---") {
 				contents = mdTitle + contents
 				gfile.PutContents(filePath, contents)
@@ -368,9 +390,18 @@ func SaveMap(filePath string, pageURL string) {
 	pageURL = strings.ReplaceAll(pageURL, "?src=contextnavpagetreemode", "")
 	filePath = strings.ReplaceAll(filePath, "output/goframe-latest-md", "/docs")
 	// 编写正则表达式
-	regex := regexp.MustCompile(`/\d+-`)
-	filePath = regex.ReplaceAllString(filePath, "/")
-	// filePath = strings.TrimSuffix(filePath, ".md")
+	sps := strings.Split(filePath, "/")
+	regex := regexp.MustCompile(`^\d+-`)
+	regexD := regexp.MustCompile(`^\d+-\d+`)
+	// filePath = regex.ReplaceAllString(filePath, "/")
+	for i := 0; i < len(sps); i++ {
+		if regexD.MatchString(sps[i]) {
+			continue
+		}
+		sps[i] = regex.ReplaceAllString(sps[i], "")
+	}
+	filePath = strings.Join(sps, "/")
+	log.Println("SaveMap-filePath", filePath)
 	filePath = strings.ReplaceAll(filePath, " ", "%20")
 	mapData[pageURL] = filePath
 }
