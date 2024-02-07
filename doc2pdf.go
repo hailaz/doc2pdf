@@ -57,6 +57,7 @@ type DocDownload struct {
 //
 // author: hailaz
 func NewDocDownload(mainURL, outputDir string) *DocDownload {
+	log.SetFlags(log.Llongfile | log.Ldate | log.Ltime)
 	var browser *rod.Browser
 	if binPath, exists := launcher.LookPath(); exists {
 		log.Println("找到浏览器", binPath)
