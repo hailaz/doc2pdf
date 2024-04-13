@@ -37,6 +37,7 @@ var (
 		"v2.3":   "https://goframe.org/pages/viewpage.action?pageId=92131939",
 		"v2.4":   "https://goframe.org/pages/viewpage.action?pageId=96885694",
 		"v2.5":   "https://goframe.org/pages/viewpage.action?pageId=120273316",
+		"v2.6":   "https://goframe.org/pages/viewpage.action?pageId=153976856",
 		"latest": "https://goframe.org/display/gf",
 	}
 	mapData = make(map[string]string)
@@ -55,7 +56,10 @@ func DownloadGoFrameAll(mode string) {
 		ver, main := ver, main
 		wg.Add(1)
 		func() {
-			DownloadConfluence(main, "./output/goframe-"+ver, mode)
+			DownloadConfluence(main, "./output/goframe-"+ver, mode, false)
+			if ver == "latest" {
+				DownloadConfluence(main, "./output/goframe-"+ver, mode, true)
+			}
 			wg.Done()
 		}()
 	}
@@ -69,7 +73,7 @@ func DownloadGoFrameAll(mode string) {
 // author: hailaz
 func DownloadGoFrameWithVersion(version string, mode string) {
 	if main, ok := versionList[version]; ok {
-		DownloadConfluence(main, "./output/goframe-"+version, mode)
+		DownloadConfluence(main, "./output/goframe-"+version, mode, false)
 	} else {
 		log.Printf("版本号不存在")
 	}
@@ -81,7 +85,7 @@ func DownloadGoFrameWithVersion(version string, mode string) {
 //
 // author: hailaz
 func DownloadGoFrameLatest(mode string) {
-	DownloadConfluence("https://goframe.org/display/gf", "./output/goframe-latest", mode)
+	DownloadConfluence("https://goframe.org/display/gf", "./output/goframe-latest", mode, false)
 }
 
 // DownloadConfluence 下载confluence文档
@@ -89,7 +93,10 @@ func DownloadGoFrameLatest(mode string) {
 // createTime: 2023-07-27 15:26:56
 //
 // author: hailaz
-func DownloadConfluence(mainURL string, outputDir string, mode string) {
+func DownloadConfluence(mainURL string, outputDir string, mode string, withComments bool) {
+	if withComments {
+		outputDir = outputDir + "-with-comments"
+	}
 	doc := NewDocDownload(mainURL, outputDir)
 	doc.PageToMD = PageToMD
 	doc.Mode = mode
@@ -128,14 +135,18 @@ func DownloadConfluence(mainURL string, outputDir string, mode string) {
 			}
 			
 		}`)
-		// // 移除评论
-		// var elementToRemove = document.getElementById('comments-section');
-		// // 确认元素存在后再删除
-		// if (elementToRemove) {
-		// 	// 获取父级元素，并从父级中移除要删除的元素
-		// 	var parentElement = elementToRemove.parentNode;
-		// 	parentElement.removeChild(elementToRemove);
-		// }
+		// 移除评论
+		if !withComments {
+			page.MustEval(`() => {
+				var elementToRemove = document.getElementById('comments-section');
+				// 确认元素存在后再删除
+				if (elementToRemove) {
+					// 获取父级元素，并从父级中移除要删除的元素
+					var parentElement = elementToRemove.parentNode;
+					parentElement.removeChild(elementToRemove);
+				}
+			}`)
+		}
 
 	}
 	doc.MergePDFNums = 100

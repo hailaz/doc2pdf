@@ -88,7 +88,7 @@ func confluenceFunc(ctx context.Context, parser *gcmd.Parser) (err error) {
 		return
 	}
 
-	doc2pdf.DownloadConfluence(index.String(), output.String(), doc2pdf.DocDownloadModePDF)
+	doc2pdf.DownloadConfluence(index.String(), output.String(), doc2pdf.DocDownloadModePDF, false)
 	return
 }
 
