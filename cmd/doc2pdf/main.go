@@ -25,6 +25,11 @@ var (
 			Name:  "output",
 			Brief: "输出目录, ./output/temp",
 		},
+		{
+			Name:  "mode",
+			Brief: "下载模式，pdf或md，默认pdf",
+			Short: "m",
+		},
 	}
 
 	confluence = &gcmd.Command{
@@ -43,10 +48,6 @@ var (
 			Name:  "version",
 			Brief: "下载版本",
 			Short: "v",
-		}, gcmd.Argument{
-			Name:  "mode",
-			Brief: "下载模式，pdf或md，默认pdf",
-			Short: "m",
 		}),
 		Func: goframeFunc,
 	}
@@ -82,13 +83,14 @@ func confluenceFunc(ctx context.Context, parser *gcmd.Parser) (err error) {
 	// go run main.go confluence --index="https://goframe.org/display/gf" --output="./output/temp"
 	index := parser.GetOpt("index")
 	output := parser.GetOpt("output")
-	log.Printf("index: %v, output: %v", index, output)
+	inMode := parser.GetOpt("mode", doc2pdf.DocDownloadModePDF)
+	log.Printf("index: %v, output: %v, mode: %v", index, output, inMode)
 	if index == nil || output == nil {
 		log.Printf("index or output is nil")
 		return
 	}
 
-	doc2pdf.DownloadConfluence(index.String(), output.String(), doc2pdf.DocDownloadModePDF, false)
+	doc2pdf.DownloadConfluence(index.String(), output.String(), inMode.String(), false)
 	return
 }
 
