@@ -2,6 +2,7 @@ package doc2pdf
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net/url"
 	"os"
@@ -11,6 +12,8 @@ import (
 
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/launcher"
+	"github.com/go-rod/rod/lib/proto"
+	"github.com/go-rod/rod/lib/utils"
 	"github.com/gogf/gf/v2/os/gfile"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
@@ -59,15 +62,21 @@ type DocDownload struct {
 func NewDocDownload(mainURL, outputDir string) *DocDownload {
 	log.SetFlags(log.Llongfile | log.Ldate | log.Ltime)
 	var browser *rod.Browser
+	var launcherSet = launcher.New().Leakless(false)
+	// 是否调试
+	var isDebug = false
+	if isDebug {
+		launcherSet.Headless(false)
+	}
 	if binPath, exists := launcher.LookPath(); exists {
 		log.Println("找到浏览器", binPath)
-		u := launcher.New().Leakless(false).Bin(binPath).MustLaunch()
-		browser = rod.New().ControlURL(u).MustConnect()
+		launcherSet.Bin(binPath)
 	} else {
 		// 如果没有找到浏览器，就使用默认的浏览器
-		log.Println("没有找到浏览器，使用默认的浏览器，下载中...")
-		browser = rod.New().MustConnect()
-		log.Println("下载完成")
+	}
+	browser = rod.New().ControlURL(launcherSet.MustLaunch()).MustConnect()
+	if isDebug {
+		browser.SlowMotion(time.Second).Trace(true)
 	}
 	// 从mainURL获取baseURL
 	parsedURL, err := url.Parse(mainURL)
@@ -76,9 +85,6 @@ func NewDocDownload(mainURL, outputDir string) *DocDownload {
 		return nil
 	}
 	baseURL := fmt.Sprintf("%s://%s", parsedURL.Scheme, parsedURL.Host)
-	if false {
-		browser.SlowMotion(time.Second).Trace(true)
-	}
 	return &DocDownload{
 		MainURL:        mainURL,
 		outputDir:      path.Join(outputDir),
@@ -146,6 +152,13 @@ func (doc *DocDownload) Start() {
 // author: hailaz
 func (doc *DocDownload) GetBrowser() *rod.Browser {
 	return doc.browser
+}
+
+// SetDebug description
+//
+// createTime: 2025-02-13 14:39:22
+func (doc *DocDownload) SetDebug() {
+	doc.browser.SlowMotion(time.Second).Trace(true)
 }
 
 // OutputDir description
@@ -360,6 +373,25 @@ func (doc *DocDownload) SaveMD(filePath string, pageUrl string) error {
 func PageToPDF(page *rod.Page, filePath string) error {
 	page.MustPDF(filePath)
 	return nil
+}
+
+// PageToPDFWithCfg description
+//
+// createTime: 2023-08-03 11:02:25
+//
+// author: hailaz
+func PageToPDFWithCfg(page *rod.Page, filePath string, req *proto.PagePrintToPDF) error {
+	r, err := page.PDF(req)
+	if err != nil {
+		log.Printf("PDF[err]: %s", err)
+		return err
+	}
+	bin, err := io.ReadAll(r)
+	if err != nil {
+		log.Printf("ReadAll[err]: %s", err)
+		return err
+	}
+	return utils.OutputFile(filePath, bin)
 }
 
 // Move 移动文件

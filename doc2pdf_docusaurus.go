@@ -1,6 +1,7 @@
 package doc2pdf
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"path"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/proto"
+	"github.com/go-rod/rod/lib/utils"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
 )
@@ -58,6 +60,27 @@ func DownloadGoFrame() {
 // author: hailaz
 func DownloadDocusaurus(mainURL string, outputDir string) {
 	doc := NewDocDownload(mainURL, outputDir)
+	doc.PageToPDF = func(page *rod.Page, filePath string) error {
+		var width float64 = 15
+		req := &proto.PagePrintToPDF{
+			PrintBackground: true,
+			PaperWidth:      &width,
+		}
+
+		err := PageToPDFWithCfg(page, filePath, req)
+		if err != nil {
+			return err
+		}
+		// 获取页数，合并成单页
+		pageCount, err := api.PageCountFile(filePath)
+		if err == nil {
+			height := 11 * float64(pageCount)
+			req.PaperHeight = &height
+			return PageToPDFWithCfg(page, filePath, req)
+		}
+
+		return nil
+	}
 	doc.SavePDFBefore = func(page *rod.Page) {
 		// 删除class 元素 petercat-lui-assistant
 		page.MustEval(`() => {
@@ -75,7 +98,51 @@ func DownloadDocusaurus(mainURL string, outputDir string) {
 				element.parentNode.removeChild(element);
 			}
 		}`)
-		time.Sleep(time.Millisecond * 500)
+
+		// 加载到底部
+		// theme-doc-footer
+		page.MustElement("footer.theme-doc-footer").MustScrollIntoView()
+		// page.MustWaitLoad()
+
+		// 选择图片元素
+		// imgElement := page.MustElement("img") // 可以根据实际情况修改选择器
+
+		// 等待图片渲染完成
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+		defer cancel()
+
+		err := utils.Retry(ctx,
+			utils.BackoffSleeper(
+				1*time.Second, // 初始等待1s
+				5*time.Second, // 最大等待5s
+				nil,           // 使用默认退避算法
+			),
+			func() (stop bool, err error) {
+				res, err := page.Eval(`() => {
+					const images = document.querySelectorAll('img');
+					for (let i = 0; i < images.length; i++) {
+						if (!images[i].complete || images[i].naturalWidth === 0) {
+							return false;
+						}
+					}
+					return true;
+            	}`)
+				if err != nil {
+					return true, err
+				}
+				allLoaded := res.Value.Bool()
+				if allLoaded {
+					return true, nil
+				}
+				log.Println("图片未加载完成，继续等待...")
+				return false, nil // 继续重试
+			})
+
+		if err != nil {
+			log.Printf("等待图片渲染完成时出错: %v\n", err)
+		} else {
+			log.Println("图片已渲染完成")
+		}
 	}
 	doc.MenuRootSelector = "ul.theme-doc-sidebar-menu.menu__list"
 	doc.ParseMenu = ParseDocusaurusMenu

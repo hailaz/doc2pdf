@@ -2,7 +2,6 @@ package doc2pdf
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"os"
 	"path"
@@ -19,7 +18,6 @@ import (
 	"github.com/go-rod/rod"
 	"github.com/go-rod/rod/lib/devices"
 	"github.com/go-rod/rod/lib/proto"
-	"github.com/go-rod/rod/lib/utils"
 	"github.com/gogf/gf/v2/crypto/gmd5"
 	"github.com/gogf/gf/v2/os/gfile"
 	"github.com/pdfcpu/pdfcpu/pkg/api"
@@ -237,25 +235,6 @@ func DownloadConfluence(mainURL string, outputDir string, mode string, withComme
 			}
 		}
 	}
-}
-
-// PageToPDFWithCfg description
-//
-// createTime: 2023-08-03 11:02:25
-//
-// author: hailaz
-func PageToPDFWithCfg(page *rod.Page, filePath string, req *proto.PagePrintToPDF) error {
-	r, err := page.PDF(req)
-	if err != nil {
-		log.Printf("PDF[err]: %s", err)
-		return err
-	}
-	bin, err := io.ReadAll(r)
-	if err != nil {
-		log.Printf("ReadAll[err]: %s", err)
-		return err
-	}
-	return utils.OutputFile(filePath, bin)
 }
 
 // ParseConfluenceMenu 解析菜单
