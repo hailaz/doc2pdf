@@ -76,6 +76,9 @@ func NewDocDownload(mainURL, outputDir string) *DocDownload {
 		return nil
 	}
 	baseURL := fmt.Sprintf("%s://%s", parsedURL.Scheme, parsedURL.Host)
+	if false {
+		browser.SlowMotion(time.Second).Trace(true)
+	}
 	return &DocDownload{
 		MainURL:        mainURL,
 		outputDir:      path.Join(outputDir),
@@ -211,18 +214,18 @@ func (doc *DocDownload) MrPDF() {
 			if index+preNum >= fLen {
 				log.Printf("最后合并%d-%d(%d)", index, fLen, fLen)
 				if index == 0 {
-					api.MergeCreateFile(doc.fileList[index:fLen], doc.OutputDir()+fileName, nil)
+					api.MergeCreateFile(doc.fileList[index:fLen], doc.OutputDir()+fileName, false, nil)
 				} else {
-					api.MergeCreateFile(append([]string{tempOldName}, doc.fileList[index:fLen]...), doc.OutputDir()+fileName, nil)
+					api.MergeCreateFile(append([]string{tempOldName}, doc.fileList[index:fLen]...), doc.OutputDir()+fileName, false, nil)
 					os.Remove(tempOldName)
 				}
 				break
 			}
 			log.Printf("临时合并%d-%d(%d)", index, index+preNum, fLen)
 			if index == 0 {
-				api.MergeCreateFile(doc.fileList[index:index+preNum], tempName, nil)
+				api.MergeCreateFile(doc.fileList[index:index+preNum], tempName, false, nil)
 			} else {
-				api.MergeCreateFile(append([]string{tempOldName}, doc.fileList[index:index+preNum]...), tempName, nil)
+				api.MergeCreateFile(append([]string{tempOldName}, doc.fileList[index:index+preNum]...), tempName, false, nil)
 				os.Remove(tempOldName)
 			}
 
@@ -250,7 +253,7 @@ func (doc *DocDownload) AddBookmarks() error {
 //
 // author: hailaz
 func (doc *DocDownload) GetMenuRoot(selector string) *rod.Element {
-	return doc.browser.MustPage(doc.MainURL).MustWaitLoad().MustElement(selector)
+	return doc.browser.MustPage(doc.MainURL).MustWaitStable().MustElement(selector)
 }
 
 // Index description
@@ -308,7 +311,7 @@ func (doc *DocDownload) SavePDF(filePath string, pageUrl string) error {
 		os.MkdirAll(dir, os.ModePerm)
 	}
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		page := doc.browser.MustPage(pageUrl).MustWaitLoad()
+		page := doc.browser.MustPage(pageUrl).MustWaitStable()
 		defer page.Close()
 		if doc.SavePDFBefore != nil {
 			doc.SavePDFBefore(page)

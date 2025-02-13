@@ -343,8 +343,8 @@ func ParseConfluenceMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 							}
 							// log.Println("bmsIndex", level, bmsIndex, len(*bms))
 							thisBms := &((*bms)[bmsIndex])
-							thisBms.Children = make([]pdfcpu.Bookmark, 0)
-							doc.ParseMenu(doc, ul, level+1, path.Join(dirPath, dirName), &thisBms.Children)
+							thisBms.Kids = make([]pdfcpu.Bookmark, 0)
+							doc.ParseMenu(doc, ul, level+1, path.Join(dirPath, dirName), &thisBms.Kids)
 						} else {
 							doc.ParseMenu(doc, ul, level+1, path.Join(dirPath, dirName), nil)
 						}
@@ -442,7 +442,7 @@ func PageToMD(doc *DocDownload, filePath string, pageUrl string) error {
 
 	if _, err := os.Stat(cacheHtml); os.IsNotExist(err) {
 		// 加个缓存，免得每次都下载
-		page := doc.browser.MustPage(pageUrl).MustWaitLoad()
+		page := doc.browser.MustPage(pageUrl).MustWaitStable()
 		defer page.Close()
 		html, _ = page.HTML()
 		queryDoc, err := goquery.NewDocumentFromReader(strings.NewReader(html))

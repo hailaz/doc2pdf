@@ -19,6 +19,10 @@ go install github.com/hailaz/doc2pdf/cmd/doc2pdf@latest
 doc2pdf -h
 # 示例
 doc2pdf confluence --index="https://goframe.org/display/gf" --output="./output/temp"
+doc2pdf confluence --index="https://goframe.org/pages/viewpage.action?pageId=3673232" --output="./output/tougao"
+doc2pdf confluence --index="https://goframe.org/pages/viewpage.action?pageId=92127688" --output="./output/blogmd" -m=md
+
+doc2pdf docusaurus --index="https://goframe.org/quick/install" --output="./output/goframe/quick/install"
 ```
 
 ### 环境准备

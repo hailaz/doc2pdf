@@ -2,12 +2,15 @@ package doc2pdf_test
 
 import (
 	"log"
+	"os"
 	"testing"
 
 	md "github.com/JohannesKaufmann/html-to-markdown"
 	"github.com/JohannesKaufmann/html-to-markdown/plugin"
 	"github.com/gogf/gf/v2/os/gfile"
 	"github.com/hailaz/doc2pdf"
+	"github.com/pdfcpu/pdfcpu/pkg/api"
+	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 )
 
 // TestDownloadHailaz description
@@ -17,6 +20,13 @@ import (
 // author: hailaz
 func TestDownloadHailaz(t *testing.T) {
 	doc2pdf.DownloadHailaz()
+}
+
+// TestDownloadGoFrame description
+//
+// createTime: 2023-07-28 14:46:43
+func TestDownloadGoFrame(t *testing.T) {
+	doc2pdf.DownloadGoFrame()
 }
 
 // TestDownloadGoFrameLatest description
@@ -43,7 +53,23 @@ func TestDownloadGoFrameLatestMD(t *testing.T) {
 //
 // author: hailaz
 func TestDownloadGoFrameAll(t *testing.T) {
-	doc2pdf.DownloadGoFrameAll(doc2pdf.DocDownloadModePDF)
+	// doc2pdf.DownloadGoFrameAll(doc2pdf.DocDownloadModeMD)
+	f, err := os.Open(`C:\hailaz\doc2pdf\output\gfdoc.pdf`)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+
+	t.Log(api.PageCount(f, model.NewDefaultConfiguration()))
+	ctx, err := api.ReadContext(f, model.NewDefaultConfiguration())
+	if err != nil {
+
+		return
+	}
+	if err := api.ValidateContext(ctx); err != nil {
+		// return 0, err
+	}
+	t.Log(ctx.PageCount)
 }
 
 // TestDownloadRuanyifeng description

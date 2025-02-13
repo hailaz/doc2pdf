@@ -34,27 +34,35 @@ var (
 
 	confluence = &gcmd.Command{
 		Name:        "confluence",
-		Brief:       "confluence文档转换为pdf",
+		Brief:       "confluence文档转换为pdf，doc2pdf confluence -h",
 		Description: "doc2pdf confluence --index=\"https://goframe.org/display/gf\" --output=\"./output/temp\"",
 		Arguments:   pubArgs,
 		Func:        confluenceFunc,
 	}
 
-	goframe = &gcmd.Command{
+	goframeOld = &gcmd.Command{
 		Name:        "gf",
-		Brief:       "GoFrame文档转换为pdf",
+		Brief:       "GoFrame文档转换为pdf，doc2pdf gf -h",
 		Description: "doc2pdf gf",
 		Arguments: append(pubArgs, gcmd.Argument{
 			Name:  "version",
 			Brief: "下载版本",
 			Short: "v",
 		}),
-		Func: goframeFunc,
+		Func: goframeFuncOld,
+	}
+
+	goframe = &gcmd.Command{
+		Name:        "gf",
+		Brief:       "GoFrame文档转换为pdf，doc2pdf gf -h",
+		Description: "doc2pdf gf",
+		Arguments:   pubArgs,
+		Func:        goframeFunc,
 	}
 
 	docusaurus = &gcmd.Command{
 		Name:        "docusaurus",
-		Brief:       "docusaurus文档转换为pdf",
+		Brief:       "docusaurus文档转换为pdf，doc2pdf docusaurus -h",
 		Description: "doc2pdf docusaurus --index=\"http://www.hailaz.cn/docs/learn/index\" --output=\"./output/hailaz-learn\"",
 		Arguments:   pubArgs,
 		Func:        docusaurusFunc,
@@ -95,7 +103,7 @@ func confluenceFunc(ctx context.Context, parser *gcmd.Parser) (err error) {
 }
 
 // goframeFunc description
-func goframeFunc(ctx context.Context, parser *gcmd.Parser) (err error) {
+func goframeFuncOld(ctx context.Context, parser *gcmd.Parser) (err error) {
 	version := parser.GetOpt("version")
 	inMode := parser.GetOpt("mode", doc2pdf.DocDownloadModePDF)
 	log.Printf("version: %v, mode: %v", version, inMode)
@@ -109,6 +117,12 @@ func goframeFunc(ctx context.Context, parser *gcmd.Parser) (err error) {
 	} else {
 		doc2pdf.DownloadGoFrameLatest(inMode.String())
 	}
+	return
+}
+
+// goframeFunc description
+func goframeFunc(ctx context.Context, parser *gcmd.Parser) (err error) {
+	doc2pdf.DownloadGoFrame()
 	return
 }
 

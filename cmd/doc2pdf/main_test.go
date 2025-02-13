@@ -56,18 +56,18 @@ func MRList(fileList []string, dirPath string, fileName string, preNum int) {
 			if index+preNum >= fLen {
 				log.Printf("合并%d-%d\n%+v", index, fLen, fileList[index:fLen])
 				if index == 0 {
-					api.MergeCreateFile(fileList[index:fLen], tempName, nil)
+					api.MergeCreateFile(fileList[index:fLen], tempName, false, nil)
 				} else {
-					api.MergeCreateFile(append([]string{tempOldName}, fileList[index:fLen]...), dirPath+fileName, nil)
+					api.MergeCreateFile(append([]string{tempOldName}, fileList[index:fLen]...), dirPath+fileName, false, nil)
 					os.Remove(tempOldName)
 				}
 				break
 			}
 			log.Printf("合并%d-%d\n%+v", index, index+preNum, fileList[index:index+preNum])
 			if index == 0 {
-				api.MergeCreateFile(fileList[index:index+preNum], tempName, nil)
+				api.MergeCreateFile(fileList[index:index+preNum], tempName, false, nil)
 			} else {
-				api.MergeCreateFile(append([]string{tempOldName}, fileList[index:index+preNum]...), tempName, nil)
+				api.MergeCreateFile(append([]string{tempOldName}, fileList[index:index+preNum]...), tempName, false, nil)
 				os.Remove(tempOldName)
 			}
 
@@ -119,7 +119,7 @@ func SavePdf(browser *rod.Browser, filePath string, pageUrl string) error {
 		os.MkdirAll(dir, os.ModePerm)
 	}
 	if _, err := os.Stat(filePath); os.IsNotExist(err) || !os.IsNotExist(err) {
-		page := browser.MustPage(pageUrl).MustWaitLoad()
+		page := browser.MustPage(pageUrl).MustWaitStable()
 		defer page.Close()
 		// _ = proto.EmulationSetLocaleOverride{Locale: "zh-CN"}.Call(page)
 		// page.MustEmulate(devices.)
