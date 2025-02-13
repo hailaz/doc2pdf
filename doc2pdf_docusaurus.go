@@ -80,6 +80,11 @@ func DownloadDocusaurus(mainURL string, outputDir string) {
 	doc.MenuRootSelector = "ul.theme-doc-sidebar-menu.menu__list"
 	doc.ParseMenu = ParseDocusaurusMenu
 	doc.Start()
+
+	if doc.Mode == DocDownloadModePDF {
+		// 复制文件到其它目录
+		log.Println(doc.Move("./dist"))
+	}
 	// 复制文件到其它目录
 	// log.Println(doc.Move("./dist"))
 }
