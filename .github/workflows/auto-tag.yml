@@ -42,3 +42,4 @@ jobs:
           name: '${{ steps.next_version.outputs.version }}'
           draft: false
           prerelease: false
+
