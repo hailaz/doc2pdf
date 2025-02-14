@@ -122,7 +122,9 @@ func goframeFuncOld(ctx context.Context, parser *gcmd.Parser) (err error) {
 
 // goframeFunc description
 func goframeFunc(ctx context.Context, parser *gcmd.Parser) (err error) {
-	doc2pdf.DownloadGoFrame()
+	index := parser.GetOpt("index")
+	log.Printf("index: %v", index)
+	doc2pdf.DownloadGoFrame(index.String())
 	return
 }
 

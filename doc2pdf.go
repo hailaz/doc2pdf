@@ -74,9 +74,15 @@ func NewDocDownload(mainURL, outputDir string) *DocDownload {
 	} else {
 		// 如果没有找到浏览器，就使用默认的浏览器
 	}
-	browser = rod.New().ControlURL(launcherSet.MustLaunch()).MustConnect()
+	u, err := launcherSet.Launch()
+	if err != nil {
+		panic(err)
+	}
+	log.Println("浏览器启动成功", u)
+
+	browser = rod.New().ControlURL(u).MustConnect()
 	if isDebug {
-		browser.SlowMotion(time.Second).Trace(true)
+		browser.SlowMotion(time.Second)
 	}
 	// 从mainURL获取baseURL
 	parsedURL, err := url.Parse(mainURL)
@@ -94,7 +100,7 @@ func NewDocDownload(mainURL, outputDir string) *DocDownload {
 		fileList:       make([]string, 0),
 		bookmark:       make([]pdfcpu.Bookmark, 0),
 		pageFrom:       1,
-		browser:        browser,
+		browser:        browser.Trace(true),
 		baseURL:        baseURL,
 		OpDelay:        200 * time.Millisecond,
 		PageToPDF:      PageToPDF,

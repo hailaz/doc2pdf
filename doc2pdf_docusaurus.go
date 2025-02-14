@@ -28,27 +28,30 @@ func DownloadHailaz() {
 }
 
 // DownloadGoFrame 下载GoFrame文档
-func DownloadGoFrame() {
+func DownloadGoFrame(domain string) {
+	if domain == "" {
+		domain = "https://pages.goframe.org"
+	}
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		DownloadDocusaurus("https://goframe.org/quick/install", "./output/goframe/quick")
+		DownloadDocusaurus(domain+"/quick/install", "./output/goframe/quick")
 	}()
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		DownloadDocusaurus("https://goframe.org/docs/cli", "./output/goframe/docs")
+		DownloadDocusaurus(domain+"/docs/cli", "./output/goframe/docs")
 	}()
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		DownloadDocusaurus("https://goframe.org/examples/grpc", "./output/goframe/examples")
+		DownloadDocusaurus(domain+"/examples/grpc", "./output/goframe/examples")
 	}()
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		DownloadDocusaurus("https://goframe.org/release/note", "./output/goframe/release")
+		DownloadDocusaurus(domain+"/release/note", "./output/goframe/release")
 	}()
 	wg.Wait()
 }
@@ -108,14 +111,14 @@ func DownloadDocusaurus(mainURL string, outputDir string) {
 		// imgElement := page.MustElement("img") // 可以根据实际情况修改选择器
 
 		// 等待图片渲染完成
-		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 
 		err := utils.Retry(ctx,
 			utils.BackoffSleeper(
-				1*time.Second, // 初始等待1s
-				5*time.Second, // 最大等待5s
-				nil,           // 使用默认退避算法
+				100*time.Millisecond, // 初始等待
+				2*time.Second,        // 最大等待5s
+				nil,                  // 使用默认退避算法
 			),
 			func() (stop bool, err error) {
 				res, err := page.Eval(`() => {
