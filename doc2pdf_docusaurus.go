@@ -36,12 +36,12 @@ func DownloadGoFrame(domain string) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		DownloadDocusaurus(domain+"/quick/install", "./output/goframe/quick")
+		DownloadDocusaurus(domain+"/docs/cli", "./output/goframe/docs")
 	}()
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		DownloadDocusaurus(domain+"/docs/cli", "./output/goframe/docs")
+		DownloadDocusaurus(domain+"/quick/install", "./output/goframe/quick")
 	}()
 	wg.Add(1)
 	go func() {
@@ -64,7 +64,7 @@ func DownloadGoFrame(domain string) {
 func DownloadDocusaurus(mainURL string, outputDir string) {
 	doc := NewDocDownload(mainURL, outputDir)
 	doc.PageToPDF = func(page *rod.Page, filePath string) error {
-		var width float64 = 15
+		var width float64 = 20
 		req := &proto.PagePrintToPDF{
 			PrintBackground: true,
 			PaperWidth:      &width,
@@ -85,12 +85,26 @@ func DownloadDocusaurus(mainURL string, outputDir string) {
 		return nil
 	}
 	doc.SavePDFBefore = func(page *rod.Page) {
+		// #__docusaurus_skipToContent_fallback > div > div > main > div > div > div.col.docItemCol_VOVn
+		// 删除指定class的样式
+		page.MustEval(`() => {
+			const elements = document.getElementsByClassName('docItemCol_VOVn');
+			Array.from(elements).forEach(element => {
+				element.classList.remove('docItemCol_VOVn');
+			});
+		}`)
+
+		// 添加 pre code 样式
+		page.MustEval(`() => {
+			const style = document.createElement('style');
+			style.textContent = 'pre code { white-space: pre-wrap; overflow-wrap: anywhere; }';
+			document.head.appendChild(style);
+		}`)
+
 		// 删除class 元素 petercat-lui-assistant
 		page.MustEval(`() => {
 			var elementToRemove = document.querySelector('.petercat-lui-assistant');
-			// 确认元素存在后再删除
 			if (elementToRemove) {
-				// 获取父级元素，并从父级中移除要删除的元素
 				var parentElement = elementToRemove.parentNode;
 				parentElement.removeChild(elementToRemove);
 			}
@@ -102,13 +116,27 @@ func DownloadDocusaurus(mainURL string, outputDir string) {
 			}
 		}`)
 
-		// 加载到底部
-		// theme-doc-footer
-		page.MustElement("footer.theme-doc-footer").MustScrollIntoView()
-		// page.MustWaitLoad()
-
-		// 选择图片元素
-		// imgElement := page.MustElement("img") // 可以根据实际情况修改选择器
+		// 平滑滚动到底部，确保所有内容加载
+		page.MustEval(`() => {
+			return new Promise((resolve) => {
+				const totalHeight = document.documentElement.scrollHeight;
+				let currentPosition = 0;
+				const step = 300; // 每次滚动300像素
+				const delay = 300; // 每次滚动间隔ms
+				
+				const smoothScroll = () => {
+					if (currentPosition < totalHeight) {
+						currentPosition = Math.min(currentPosition + step, totalHeight);
+						window.scrollTo(0, currentPosition);
+						setTimeout(smoothScroll, delay);
+					} else {
+						resolve();
+					}
+				};
+				
+				smoothScroll();
+			});
+		}`)
 
 		// 等待图片渲染完成
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -234,7 +262,6 @@ func ParseDocusaurusMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 						// 滚动到页面底部
 						window.scrollTo(0, document.documentElement.scrollHeight);
 					}`)
-					time.Sleep(doc.OpDelay)
 					if err := a.Click(proto.InputMouseButtonLeft, 1); err == nil {
 						log.Printf("点击展开菜单成功: %s", text)
 						time.Sleep(doc.OpDelay)
