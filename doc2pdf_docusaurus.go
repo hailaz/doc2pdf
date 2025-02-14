@@ -197,8 +197,8 @@ func ParseDocusaurusMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 			Title:    text,
 			PageFrom: doc.pageFrom,
 		})
-
-		{
+		// 判断是否是链接
+		if *href != "#" {
 			url := doc.baseURL + *href
 			log.Printf("准备下载页面: %s", url)
 

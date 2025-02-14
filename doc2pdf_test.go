@@ -26,7 +26,7 @@ func TestDownloadHailaz(t *testing.T) {
 //
 // createTime: 2023-07-28 14:46:43
 func TestDownloadGoFrame(t *testing.T) {
-	doc2pdf.DownloadGoFrame("https://pages.goframe.org")
+	doc2pdf.DownloadGoFrame("https://goframe.org")
 }
 
 // TestDownloadGoFrameLatest description
