@@ -1,99 +1,46 @@
-# example 1: on push to master
-name: 下载文档并发布
+name: Auto Tag and Release
+
 on:
   push:
-    paths:
-      - 'change.log'
-  schedule:
-    - cron: '0 15 */3 * *'
-env:
-  TZ: "Asia/Shanghai"
+    branches:
+      - main
+      - master
+
 jobs:
-  build:
-    runs-on: ubuntu-22.04
-    # permissions:
-    #   contents: write
-    #   packages: write
+  tag-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
-      - name: Checkout Github Code
-        uses: actions/checkout@v3
-      
-      - name: 生成环境变量
-        run: |
-          echo "GITHUB_MY_TAG=$(date +v%Y.%m.%d%H%M)" >> $GITHUB_ENV
-          echo "GITHUB_CACHE_KEY=$(date +v%Y-%m-%d-%H)" >> $GITHUB_ENV
-          echo "GITHUB_CACHE_KEY_D=$(date +v%Y-%m-%d-)" >> $GITHUB_ENV
-          echo "GITHUB_CACHE_KEY_M=$(date +v%Y-%m-)" >> $GITHUB_ENV
-      - name: 输出生成环境变量
-        run: |
-          echo ${{ env }}
-      - uses: actions/cache@v3
-        id: cache
+      - uses: actions/checkout@v3
         with:
-          path: |
-            output
-            dist
-          key: ${{ env.GITHUB_CACHE_KEY }}
-          restore-keys: |
-            ${{ env.GITHUB_CACHE_KEY_D }}
-            ${{ env.GITHUB_CACHE_KEY_M }}
-            v2023.08.03
-            cache-key
-      - name: Autotag
-        uses: cardinalby/git-tag-action@master
-        env:
-          TAG: ${{ env.GITHUB_MY_TAG }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-         
+          fetch-depth: 0
 
-      # - name: Set Up Golang Environment
-      #   uses: actions/setup-go@v4
-      #   with:
-      #     go-version: 1.20.4
-
-
-      - name: 准备环境
-        run: |
-          echo ${{ env.GITHUB_MY_TAG }}
-          sudo apt update
-          sudo apt install ttf-wqy-zenhei
-          fc-cache -f -v
-          ls -la
-          rm -rf output/goframe-latest
-          # ls -la output
-      - name: download doc
-        run: |
-          cmd/doc2pdf/doc2pdf gf
-      - name: show files
-        run: |
-          ls -la
-          ls -la dist
-
-      - name: Create Github Release
-        id: create_release
-        uses: softprops/action-gh-release@v0.1.15
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Get latest tag
+        id: get_latest_tag
+        uses: "WyriHaximus/github-action-get-previous-tag@v1"
         with:
-          tag_name: "${{ env.GITHUB_MY_TAG }}"
-          name: "${{ env.GITHUB_MY_TAG }}"
-          draft: false
-          prerelease: false
-          files: |
-            dist/goframe-v1.14.pdf
-            dist/goframe-v1.15.pdf
-            dist/goframe-v1.16.pdf
-            dist/goframe-v2.0.pdf
-            dist/goframe-v2.1.pdf
-            dist/goframe-v2.2.pdf
-            dist/goframe-v2.3.pdf
-            dist/goframe-v2.4.pdf
-            dist/goframe-latest.pdf
+          fallback: v0.0.0
+        
+      - name: Generate next version
+        id: next_version
+        run: |
+          CURRENT_VERSION=${{ steps.get_latest_tag.outputs.tag }}
+          MAJOR=$(echo $CURRENT_VERSION | cut -d. -f1)
+          MINOR=$(echo $CURRENT_VERSION | cut -d. -f2)
+          PATCH=$(echo $CURRENT_VERSION | cut -d. -f3)
+          NEXT_PATCH=$((PATCH + 1))
+          NEXT_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}"
+          echo "version=${NEXT_VERSION}" >> $GITHUB_OUTPUT
 
-      # - name: Upload Release Asset
-      #   id: upload-release-asset
-      #   uses: alexellis/upload-assets@0.4.0
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   with:
-      #     asset_paths: '["dist/*"]'
+      - name: Create and push tag
+        run: |
+          git tag v${{ steps.next_version.outputs.version }}
+          git push origin v${{ steps.next_version.outputs.version }}
+          
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: v${{ steps.next_version.outputs.version }}
+          name: Release v${{ steps.next_version.outputs.version }}
+          generateReleaseNotes: true
