@@ -18,10 +18,10 @@ jobs:
 
       - name: Get latest tag
         id: get_latest_tag
-        uses: "WyriHaximus/github-action-get-previous-tag@v1"
+        uses: 'WyriHaximus/github-action-get-previous-tag@v1'
         with:
           fallback: v0.0.0
-        
+
       - name: Generate next version
         id: next_version
         run: |
@@ -32,15 +32,13 @@ jobs:
           NEXT_PATCH=$((PATCH + 1))
           NEXT_VERSION="${MAJOR}.${MINOR}.${NEXT_PATCH}"
           echo "version=${NEXT_VERSION}" >> $GITHUB_OUTPUT
-
-      - name: Create and push tag
-        run: |
-          git tag v${{ steps.next_version.outputs.version }}
-          git push origin v${{ steps.next_version.outputs.version }}
-          
-      - name: Create Release
-        uses: ncipollo/release-action@v1
+      - name: Create Github Release
+        id: create_release
+        uses: softprops/action-gh-release@v0.1.15
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag: v${{ steps.next_version.outputs.version }}
-          name: Release v${{ steps.next_version.outputs.version }}
-          generateReleaseNotes: true
+          tag_name: '${{ steps.next_version.outputs.version }}'
+          name: '${{ steps.next_version.outputs.version }}'
+          draft: false
+          prerelease: false
