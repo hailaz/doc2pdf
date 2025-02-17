@@ -82,7 +82,7 @@ func NewDocDownload(mainURL, outputDir string) *DocDownload {
 
 	browser = rod.New().ControlURL(u).MustConnect()
 	if isDebug {
-		browser.SlowMotion(time.Second)
+		browser.SlowMotion(time.Second * 2)
 	}
 	// 从mainURL获取baseURL
 	parsedURL, err := url.Parse(mainURL)
@@ -272,7 +272,13 @@ func (doc *DocDownload) AddBookmarks() error {
 //
 // author: hailaz
 func (doc *DocDownload) GetMenuRoot(selector string) *rod.Element {
-	return doc.browser.MustPage(doc.MainURL).MustWaitStable().MustElement(selector)
+	page := doc.browser.MustPage(doc.MainURL).MustWaitStable()
+	page.SetWindow(&proto.BrowserBounds{WindowState: proto.BrowserWindowStateMaximized})
+	page.SetViewport(&proto.EmulationSetDeviceMetricsOverride{
+		Width:  1920,
+		Height: 100000,
+	})
+	return page.MustElement(selector)
 }
 
 // Index description

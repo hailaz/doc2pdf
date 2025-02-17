@@ -32,28 +32,36 @@ func DownloadGoFrame(domain string) {
 	if domain == "" {
 		domain = "https://pages.goframe.org"
 	}
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		DownloadDocusaurus(domain+"/docs/cli", "./output/goframe/docs")
-	}()
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		DownloadDocusaurus(domain+"/quick/install", "./output/goframe/quick")
-	}()
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		DownloadDocusaurus(domain+"/examples/grpc", "./output/goframe/examples")
-	}()
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	if true {
 		DownloadDocusaurus(domain+"/release/note", "./output/goframe/release")
-	}()
-	wg.Wait()
+		DownloadDocusaurus(domain+"/quick/install", "./output/goframe/quick")
+		DownloadDocusaurus(domain+"/examples/grpc", "./output/goframe/examples")
+		DownloadDocusaurus(domain+"/docs/cli", "./output/goframe/docs")
+	} else {
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			DownloadDocusaurus(domain+"/docs/cli", "./output/goframe/docs")
+		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			DownloadDocusaurus(domain+"/quick/install", "./output/goframe/quick")
+		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			DownloadDocusaurus(domain+"/examples/grpc", "./output/goframe/examples")
+		}()
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			DownloadDocusaurus(domain+"/release/note", "./output/goframe/release")
+		}()
+		wg.Wait()
+	}
+
 }
 
 // DownloadDocusaurus 下载confluence文档
@@ -206,6 +214,8 @@ func ParseDocusaurusMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 			continue
 		}
 
+		log.Printf("获取a标签成功: %s", a.MustHTML())
+
 		// 获取a标签的href属性
 		href, err := a.Attribute("href")
 		if err != nil {
@@ -258,10 +268,10 @@ func ParseDocusaurusMenu(doc *DocDownload, root *rod.Element, level int, dirPath
 				if strings.Contains(*class, "menu__list-item--collapsed") {
 					// 点击展开
 					log.Printf("点击展开菜单: %s", text)
-					root.Page().MustEval(`() => {
-						// 滚动到页面底部
-						window.scrollTo(0, document.documentElement.scrollHeight);
-					}`)
+					// root.Page().MustEval(`() => {
+					// 	// 滚动到页面底部
+					// 	window.scrollTo(0, document.documentElement.scrollHeight);
+					// }`)
 					if err := a.Click(proto.InputMouseButtonLeft, 1); err == nil {
 						log.Printf("点击展开菜单成功: %s", text)
 						time.Sleep(doc.OpDelay)
