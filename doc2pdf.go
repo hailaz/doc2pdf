@@ -80,7 +80,7 @@ func NewDocDownload(mainURL, outputDir string) *DocDownload {
 	}
 	log.Println("浏览器启动成功", u)
 
-	browser = rod.New().ControlURL(u).MustConnect().NoDefaultDevice()
+	browser = rod.New().ControlURL(u).MustConnect()
 	if isDebug {
 		browser.SlowMotion(time.Second)
 	}
