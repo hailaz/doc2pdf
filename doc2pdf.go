@@ -177,6 +177,13 @@ func (doc *DocDownload) OutputDir() string {
 	return doc.outputDir
 }
 
+// OutputPDF description
+//
+// createTime: 2024-02-05 15:57:59
+func (doc *DocDownload) OutputPDF() string {
+	return doc.OutputDir() + ".pdf"
+}
+
 // StaticDir description
 //
 // createTime: 2024-02-05 15:57:59
@@ -261,9 +268,9 @@ func (doc *DocDownload) MrPDF() {
 //
 // author: hailaz
 func (doc *DocDownload) AddBookmarks() error {
-	log.Println("添加书签", doc.OutputDir()+".pdf")
+	log.Println("添加书签", doc.OutputPDF())
 	// gutil.Dump(doc.bookmark)
-	return api.AddBookmarksFile(doc.OutputDir()+doc.TempSuffix, doc.OutputDir()+".pdf", doc.bookmark, true, nil)
+	return api.AddBookmarksFile(doc.OutputDir()+doc.TempSuffix, doc.OutputPDF(), doc.bookmark, true, nil)
 }
 
 // GetMenuRoot description
@@ -412,7 +419,7 @@ func PageToPDFWithCfg(page *rod.Page, filePath string, req *proto.PagePrintToPDF
 //
 // author: hailaz
 func (doc *DocDownload) Move(targetDir string) error {
-	src := doc.OutputDir() + ".pdf"
+	src := doc.OutputPDF()
 	dst := path.Join(targetDir, path.Base(src))
 
 	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
