@@ -32,7 +32,7 @@ func DownloadGoFrame(domain string) {
 	if domain == "" {
 		domain = "https://pages.goframe.org"
 	}
-	if true {
+	if false {
 		DownloadDocusaurus(domain+"/release/note", "./output/goframe/release")
 		DownloadDocusaurus(domain+"/quick/install", "./output/goframe/quick")
 		DownloadDocusaurus(domain+"/examples/grpc", "./output/goframe/examples")

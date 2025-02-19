@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -52,6 +53,11 @@ type DocDownload struct {
 	// menu
 	MenuRootSelector string
 	ParseMenu        func(doc *DocDownload, root *rod.Element, level int, dirPath string, bms *[]pdfcpu.Bookmark) // 解析菜单
+
+	// 单文件最大页面数
+	MaxPage int
+	// 切分后的文件列表
+	SplitFiles []string
 }
 
 // NewDocDownload description
@@ -100,11 +106,12 @@ func NewDocDownload(mainURL, outputDir string) *DocDownload {
 		fileList:       make([]string, 0),
 		bookmark:       make([]pdfcpu.Bookmark, 0),
 		pageFrom:       1,
-		browser:        browser.Trace(true),
+		browser:        browser.Trace(false),
 		baseURL:        baseURL,
 		OpDelay:        200 * time.Millisecond,
 		PageToPDF:      PageToPDF,
 		Mode:           DocDownloadModePDF,
+		MaxPage:        100,
 	}
 }
 
@@ -142,10 +149,9 @@ func (doc *DocDownload) Start() {
 			doc.MrPDF()
 		}
 
-		log.Println("判断是否有书签数据")
-		if len(doc.bookmark) > 0 {
-			doc.AddBookmarks()
-		}
+		doc.AddBookmarks()
+
+		doc.SplitPDF()
 	}
 	// 关闭浏览器
 	doc.Close()
@@ -268,9 +274,63 @@ func (doc *DocDownload) MrPDF() {
 //
 // author: hailaz
 func (doc *DocDownload) AddBookmarks() error {
-	log.Println("添加书签", doc.OutputPDF())
-	// gutil.Dump(doc.bookmark)
-	return api.AddBookmarksFile(doc.OutputDir()+doc.TempSuffix, doc.OutputPDF(), doc.bookmark, true, nil)
+	log.Println("判断是否有书签数据")
+	if len(doc.bookmark) > 0 {
+		log.Println("添加书签", doc.OutputPDF())
+		// gutil.Dump(doc.bookmark)
+		return api.AddBookmarksFile(doc.OutputDir()+doc.TempSuffix, doc.OutputPDF(), doc.bookmark, true, nil)
+	}
+	return nil
+}
+
+// SplitPDF 根据最大页面数切分pdf
+//
+// createTime: 2023-07-26 16:22:46
+func (doc *DocDownload) SplitPDF() {
+	// 1. 读取PDF文件
+	pdfName := doc.OutputPDF()
+	log.Println("开始切分PDF", pdfName)
+	pageCount, err := api.PageCountFile(pdfName)
+	if err != nil {
+		log.Println("PageCountFile Error:", err)
+		return
+	}
+	// 2. 计算分割页数
+	maxPage := doc.MaxPage
+	if maxPage <= 0 {
+		log.Println("MaxPage必须大于0")
+		return
+	}
+	if pageCount <= maxPage {
+		log.Println("页面数小于MaxPage，无需切分")
+		return
+	}
+
+	fileList := make([]string, 0)
+
+	var pageNrs []int
+	// 3. 执行分割
+	for i := 1; i <= pageCount; {
+		startPage := i
+		endPage := i + maxPage
+		if endPage > pageCount {
+			endPage = pageCount + 1
+		} else {
+			pageNrs = append(pageNrs, endPage)
+		}
+		fileName := fmt.Sprintf("%s_%d-%d.pdf", strings.TrimSuffix(pdfName, ".pdf"), startPage, endPage-1)
+		fileList = append(fileList, fileName)
+		i = endPage
+	}
+	log.Println("分割页数:", pageNrs)
+	err = api.SplitByPageNrFile(pdfName, filepath.Dir(doc.OutputDir()), pageNrs, nil)
+	if err != nil {
+		log.Println("SplitByPageNrFile Error:", err)
+		return
+	}
+	// 4. 保存分割后的文件列表
+	doc.SplitFiles = fileList
+	log.Println("切分完成，文件列表:", doc.SplitFiles)
 }
 
 // GetMenuRoot description
@@ -419,13 +479,26 @@ func PageToPDFWithCfg(page *rod.Page, filePath string, req *proto.PagePrintToPDF
 //
 // author: hailaz
 func (doc *DocDownload) Move(targetDir string) error {
-	src := doc.OutputPDF()
-	dst := path.Join(targetDir, path.Base(src))
-
 	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
 		fmt.Println("创建目录", targetDir)
 		os.MkdirAll(targetDir, os.ModePerm)
 	}
+
+	if len(doc.SplitFiles) > 0 {
+		for _, file := range doc.SplitFiles {
+			src := file
+			dst := path.Join(targetDir, path.Base(src))
+			if _, err := os.Stat(src); os.IsNotExist(err) {
+				continue
+			}
+			// 复制文件
+			os.Rename(src, dst)
+
+		}
+	}
+
+	src := doc.OutputPDF()
+	dst := path.Join(targetDir, path.Base(src))
 
 	if _, err := os.Stat(src); os.IsNotExist(err) {
 		return err
