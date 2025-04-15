@@ -307,9 +307,12 @@ func (doc *DocDownload) SplitPDF() {
 	}
 
 	fileList := make([]string, 0)
+	newFileList := make([]string, 0)
+	baseName := strings.TrimSuffix(pdfName, ".pdf")
 
 	var pageNrs []int
 	// 3. 执行分割
+	partIndex := 1
 	for i := 1; i <= pageCount; {
 		startPage := i
 		endPage := i + maxPage
@@ -318,18 +321,39 @@ func (doc *DocDownload) SplitPDF() {
 		} else {
 			pageNrs = append(pageNrs, endPage)
 		}
-		fileName := fmt.Sprintf("%s_%d-%d.pdf", strings.TrimSuffix(pdfName, ".pdf"), startPage, endPage-1)
-		fileList = append(fileList, fileName)
+		// SplitByPageNrFile 会生成的文件名
+		originalFileName := fmt.Sprintf("%s_%d-%d.pdf", baseName, startPage, endPage-1)
+		fileList = append(fileList, originalFileName)
+
+		// 我们想要重命名为这个名称
+		newFileName := fmt.Sprintf("%s_part%d.pdf", baseName, partIndex)
+		newFileList = append(newFileList, newFileName)
+
 		i = endPage
+		partIndex++
 	}
+
 	log.Println("分割页数:", pageNrs)
 	err = api.SplitByPageNrFile(pdfName, filepath.Dir(doc.OutputDir()), pageNrs, nil)
 	if err != nil {
 		log.Println("SplitByPageNrFile Error:", err)
 		return
 	}
-	// 4. 保存分割后的文件列表
-	doc.SplitFiles = fileList
+
+	// 4. 重命名分割后的文件
+	for i, oldFile := range fileList {
+		if i < len(newFileList) {
+			err := os.Rename(oldFile, newFileList[i])
+			if err != nil {
+				log.Printf("重命名文件失败 %s -> %s: %v", oldFile, newFileList[i], err)
+			} else {
+				log.Printf("重命名文件成功 %s -> %s", oldFile, newFileList[i])
+			}
+		}
+	}
+
+	// 5. 保存分割后的文件列表
+	doc.SplitFiles = newFileList
 	log.Println("切分完成，文件列表:", doc.SplitFiles)
 }
 
